@@ -23,7 +23,10 @@ const AdminCourseForm = () => {
     youtubeUrl: ''
   });
   const [showVideoForm, setShowVideoForm] = useState('');
+  const [showNotesForm, setShowNotesForm] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [notesUploading, setNotesUploading] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState({});
 
   const handleThumbnailUpload = async (e) => {
     const file = e.target.files[0];
@@ -34,15 +37,24 @@ const AdminCourseForm = () => {
     formData.append('thumbnail', file);
     
     const token = localStorage.getItem('token');
+    console.log('Uploading thumbnail...');
+    
     const res = await fetch('/api/upload/thumbnail', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData
     });
     
+    console.log('Upload response:', res.status);
+    
     if (res.ok) {
       const data = await res.json();
+      console.log('Upload success:', data);
       setCourse({ ...course, thumbnail: data.url });
+    } else {
+      const error = await res.json();
+      console.error('Upload error:', error);
+      alert('Upload failed: ' + (error.message || 'Unknown error'));
     }
     setUploading(false);
   };
@@ -66,10 +78,16 @@ const AdminCourseForm = () => {
   }, [id, user, navigate]);
 
   const handleSave = async () => {
+    if (!course.title || !course.description) {
+      alert('Please fill in title and description');
+      return;
+    }
     setSaving(true);
     const token = localStorage.getItem('token');
     const url = id ? `/api/courses/${id}` : '/api/courses';
     const method = id ? 'PUT' : 'POST';
+    
+    console.log('Saving course:', { url, method, course });
     
     const res = await fetch(url, {
       method,
@@ -80,9 +98,26 @@ const AdminCourseForm = () => {
       body: JSON.stringify(course)
     });
     
+    console.log('Response:', res.status, res.statusText);
+    
     if (res.ok) {
       const data = await res.json();
-      navigate(`/admin/courses/${data._id}/edit`);
+      console.log('Course saved:', data);
+      if (!id) {
+        navigate(`/admin/courses/${data._id}/edit`);
+      } else {
+        setCourse(data);
+        alert('Course saved successfully!');
+      }
+    } else {
+      const text = await res.text();
+      console.error('Error response:', text);
+      try {
+        const error = JSON.parse(text);
+        alert('Error: ' + error.message);
+      } catch (e) {
+        alert('Error: ' + text);
+      }
     }
     setSaving(false);
   };
@@ -150,34 +185,129 @@ const AdminCourseForm = () => {
     }
   };
 
+  const handleUploadNotes = async (chapterId, file) => {
+    if (!file || file.type !== 'application/pdf') {
+      alert('Please upload a PDF file');
+      return;
+    }
+    
+    setNotesUploading(true);
+    const formData = new FormData();
+    formData.append('notes', file);
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+      const res = await fetch('/api/upload/notes', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const title = newNoteTitle[chapterId] || 'Notes ' + ((course.chapters?.find(c => c._id === chapterId)?.notes?.length || 0) + 1);
+        
+        const saveRes = await fetch(`/api/courses/${id}/chapters/${chapterId}/notes`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ title, url: data.url })
+        });
+        
+        if (saveRes.ok) {
+          const updatedCourse = await saveRes.json();
+          setCourse(updatedCourse);
+          setNewNoteTitle({ ...newNoteTitle, [chapterId]: '' });
+          alert('Notes uploaded successfully!');
+        }
+      } else {
+        alert('Upload failed');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Upload failed');
+    }
+    setNotesUploading(false);
+    setShowNotesForm('');
+  };
+
+  const handleDeleteSingleNote = async (chapterId, noteId) => {
+    if (!confirm('Delete this note?')) return;
+    const token = localStorage.getItem('token');
+    
+    try {
+      const res = await fetch(`/api/courses/${id}/chapters/${chapterId}/notes/${noteId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.ok) {
+        const updatedCourse = await res.json();
+        setCourse(updatedCourse);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to delete note');
+    }
+  };
+
+  const handleDeleteNotes = async (chapterId) => {
+    if (!confirm('Delete notes for this chapter?')) return;
+    const token = localStorage.getItem('token');
+    
+    try {
+      const res = await fetch(`/api/courses/${id}/chapters/${chapterId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ notes: '' })
+      });
+      
+      if (res.ok) {
+        const updatedCourse = await res.json();
+        setCourse(updatedCourse);
+        alert('Notes deleted successfully!');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to delete notes');
+    }
+    setShowNotesForm('');
+  };
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="text-center">Loading...</div>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+        <div className="text-center text-sm sm:text-base">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-6 mb-5 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">
           {id ? 'Edit Course' : 'Create New Course'}
         </h1>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 w-full sm:w-auto text-sm sm:text-base"
         >
           {saving ? 'Saving...' : 'Save Course'}
         </button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold mb-4">Course Details</h2>
-            <div className="space-y-4">
+      <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="md:col-span-2 space-y-4 sm:space-y-6">
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Course Details</h2>
+            <div className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Title</label>
                 <input
@@ -255,26 +385,78 @@ const AdminCourseForm = () => {
             <div className="space-y-4">
               {course.chapters?.map((chapter, index) => (
                 <div key={chapter._id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-medium">
-                      Chapter {index + 1}: {chapter.title}
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-2">
+                    <h3 className="font-medium text-sm sm:text-base">
+                      Chapter: {chapter.title}
                     </h3>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setShowNotesForm(showNotesForm === chapter._id ? '' : chapter._id)}
+                        className="bg-green-100 text-green-700 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium hover:bg-green-200 transition"
+                      >
+                        + Add Notes
+                      </button>
                       <button
                         onClick={() => setShowVideoForm(chapter._id)}
-                        className="text-blue-600 text-sm hover:underline"
+                        className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-200 transition"
                       >
                         + Add Video
                       </button>
                       <button
                         onClick={() => handleDeleteChapter(chapter._id)}
-                        className="text-red-600 text-sm hover:underline"
+                        className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium hover:bg-red-200 transition"
                       >
                         Delete
                       </button>
                     </div>
                   </div>
+
+                  {/* Show existing notes */}
+                  {chapter.notes && chapter.notes.length > 0 && (
+                    <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs font-medium text-gray-500 mb-2">Uploaded Notes:</p>
+                      <div className="space-y-2">
+                        {chapter.notes.map((note, noteIndex) => (
+                          <div key={noteIndex} className="flex justify-between items-center bg-white p-2 rounded border">
+                            <span className="text-sm text-gray-700 truncate flex-1 mr-2">{note.title || 'Notes ' + (noteIndex + 1)}</span>
+                            <button
+                              onClick={() => handleDeleteSingleNote(chapter._id, note._id)}
+                              className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-medium hover:bg-red-200"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
+                  {showNotesForm === chapter._id && (
+                    <div className="bg-green-50 p-4 rounded-lg mb-3 border border-green-200">
+                      <div className="mb-3">
+                        <label className="block text-xs text-gray-600 mb-1">Notes Title</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Lecture Notes, Summary, Exercise"
+                          value={newNoteTitle[chapter._id] || ''}
+                          onChange={(e) => setNewNoteTitle({ ...newNoteTitle, [chapter._id]: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Upload PDF</label>
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(e) => handleUploadNotes(chapter._id, e.target.files[0])}
+                          disabled={notesUploading}
+                          className="w-full text-sm"
+                        />
+                      </div>
+                      {notesUploading && <p className="text-xs text-gray-500 mt-2">Uploading...</p>}
+                    </div>
+                  )}
+
                   {showVideoForm === chapter._id && (
                     <div className="bg-gray-50 p-3 rounded mb-3">
                       <input
@@ -308,7 +490,7 @@ const AdminCourseForm = () => {
                         </span>
                         <button
                           onClick={() => handleDeleteVideo(chapter._id, video._id)}
-                          className="text-red-600 text-sm hover:underline"
+                          className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-medium hover:bg-red-200"
                         >
                           Delete
                         </button>

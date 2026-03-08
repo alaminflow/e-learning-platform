@@ -1,0 +1,17 @@
+{
+  "buildCommand": "cd client && npm run build",
+  "outputDirectory": "client/dist",
+  "framework": "vite",
+  "installCommand": "npm install && cd client && npm install",
+  "rewrites": [
+    { "source": "/api/health", "destination": "/api/health.js" },
+    { "source": "/api/health/(.*)", "destination": "/api/health.js" },
+    { "source": "/api/auth", "destination": "/api/auth/index.js" },
+    { "source": "/api/auth/(.*)", "destination": "/api/auth/index.js" },
+    { "source": "/api/courses", "destination": "/api/courses.js" },
+    { "source": "/api/courses/(.*)", "destination": "/api/courses.js" },
+    { "source": "/api/upload", "destination": "/api/upload.js" },
+    { "source": "/api/upload/(.*)", "destination": "/api/upload.js" },
+    { "source": "/:path*", "destination": "/index.html" }
+  ]
+}

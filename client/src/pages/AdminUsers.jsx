@@ -61,18 +61,18 @@ const AdminUsers = () => {
     setUsers(users.filter(u => u._id !== id));
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) return <div className="p-4 sm:p-8 text-center text-sm sm:text-base">Loading...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <Link to="/admin" className="text-blue-600 hover:underline mb-2 inline-block">← Back to Dashboard</Link>
-          <h1 className="text-3xl font-bold">User Management</h1>
+          <Link to="/admin" className="text-blue-600 hover:underline mb-2 inline-block text-sm">← Back to Dashboard</Link>
+          <h1 className="text-xl sm:text-3xl font-bold">User Management</h1>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+          className="bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-green-700 text-sm w-full sm:w-auto"
         >
           {showForm ? 'Cancel' : '+ Add User'}
         </button>
@@ -137,43 +137,79 @@ const AdminUsers = () => {
       )}
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {users.map(u => (
-              <tr key={u._id}>
-                <td className="px-6 py-4">{u.name}</td>
-                <td className="px-6 py-4">{u.email}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs rounded ${u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
-                    {u.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-gray-500">
-                  {new Date(u.createdAt).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4">
-                  {u._id !== user?._id && (
-                    <button
-                      onClick={() => handleDelete(u._id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </td>
+        {/* Desktop Table */}
+        <div className="hidden md:block">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {users.map(u => (
+                <tr key={u._id}>
+                  <td className="px-4 sm:px-6 py-4">{u.name}</td>
+                  <td className="px-4 sm:px-6 py-4">{u.email}</td>
+                  <td className="px-4 sm:px-6 py-4">
+                    <span className={`px-2 py-1 text-xs rounded ${u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                      {u.role}
+                    </span>
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 text-gray-500">
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 sm:px-6 py-4">
+                    {u._id !== user?._id && (
+                      <button
+                        onClick={() => handleDelete(u._id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {users.map(u => (
+            <div key={u._id} className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="font-medium text-gray-900">{u.name}</div>
+                  <div className="text-sm text-gray-500">{u.email}</div>
+                </div>
+                <span className={`px-2 py-1 text-xs rounded ${u.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                  {u.role}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mb-3">
+                Joined: {new Date(u.createdAt).toLocaleDateString()}
+              </div>
+              {u._id !== user?._id && (
+                <button
+                  onClick={() => handleDelete(u._id)}
+                  className="text-red-600 hover:text-red-800 text-sm"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          ))}
+          {users.length === 0 && (
+            <div className="text-center py-8 text-gray-500 text-sm">
+              No users found.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

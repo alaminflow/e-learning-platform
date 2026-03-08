@@ -6,6 +6,8 @@ const AdminDashboard = () => {
   const [courses, setCourses] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [banner, setBanner] = useState('');
+  const [bannerUploading, setBannerUploading] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -21,11 +23,13 @@ const AdminDashboard = () => {
       }).then(r => r.json()),
       fetch('/api/courses/enrollments/pending', {
         headers: { 'Authorization': `Bearer ${token}` }
-      }).then(r => r.json())
+      }).then(r => r.json()),
+      fetch('/api/upload/banner').then(r => r.json())
     ])
-      .then(([coursesData, enrollmentsData]) => {
+      .then(([coursesData, enrollmentsData, bannerData]) => {
         setCourses(coursesData);
         setPendingCount(enrollmentsData.length);
+        setBanner(bannerData.url || '');
         setLoading(false);
       })
       .catch(err => {
@@ -33,6 +37,37 @@ const AdminDashboard = () => {
         setLoading(false);
       });
   }, [user, navigate]);
+
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setBannerUploading(true);
+    const formData = new FormData();
+    formData.append('banner', file);
+    
+    const token = localStorage.getItem('token');
+    
+    try {
+      const res = await fetch('/api/upload/banner', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setBanner(data.url);
+        alert('Banner uploaded successfully!');
+      } else {
+        alert('Upload failed');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Upload failed');
+    }
+    setBannerUploading(false);
+  };
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this course?')) return;
@@ -63,20 +98,20 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="text-center">Loading...</div>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+        <div className="text-center text-sm sm:text-base">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Manage Dashboard</h1>
-        <div className="flex gap-4">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+        <h1 className="text-xl sm:text-3xl font-bold">Manage Dashboard</h1>
+        <div className="flex flex-wrap gap-2 sm:gap-4">
           <Link
             to="/admin/enrollments"
-            className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 relative"
+            className="bg-orange-500 text-white px-3 sm:px-6 py-2 rounded-lg hover:bg-orange-600 relative text-sm"
           >
             Requests
             {pendingCount > 0 && (
@@ -87,84 +122,164 @@ const AdminDashboard = () => {
           </Link>
           <Link
             to="/admin/users"
-            className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
+            className="bg-purple-600 text-white px-3 sm:px-6 py-2 rounded-lg hover:bg-purple-700 text-sm"
           >
-            Manage Users
+            Users
           </Link>
           <Link
             to="/admin/courses/new"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            className="bg-blue-600 text-white px-3 sm:px-6 py-2 rounded-lg hover:bg-blue-700 text-sm"
           >
-            + New Course
+            + Course
           </Link>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chapters</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Students</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {courses.map(course => (
-              <tr key={course._id}>
-                <td className="px-6 py-4">
-                  <div className="font-medium text-gray-900">{course.title}</div>
-                  <div className="text-sm text-gray-500">{course.description.slice(0, 50)}...</div>
-                </td>
-                <td className="px-6 py-4 text-gray-500">
-                  {course.chapters?.length || 0} chapters
-                </td>
-                <td className="px-6 py-4">
-                  <Link
-                    to={`/admin/courses/${course._id}/students`}
-                    className="text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    {course.enrolledStudents?.length || 0} students
-                  </Link>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs rounded ${course.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {course.isPublished ? 'Published' : 'Draft'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <Link
-                      to={`/admin/courses/${course._id}/edit`}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      onClick={() => togglePublish(course._id, course.isPublished)}
-                      className="text-gray-600 hover:text-gray-800"
-                    >
-                      {course.isPublished ? 'Unpublish' : 'Publish'}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(course._id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {courses.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No courses yet. Create your first course!
+      {/* Banner Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6 sm:mb-8">
+        <h2 className="text-base sm:text-xl font-semibold mb-3 sm:mb-4">Home Page Banner</h2>
+        <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start">
+          <div className="w-full md:w-1/3">
+            <label className="block text-sm font-medium mb-2">Upload Banner Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleBannerUpload}
+              disabled={bannerUploading}
+              className="w-full px-3 sm:px-4 py-2 border rounded-lg text-sm"
+            />
+            <p className="text-xs text-gray-500 mt-1">Recommended: 1920x500px</p>
           </div>
-        )}
+          <div className="w-full md:w-2/3">
+            {banner ? (
+              <div className="relative">
+                <img src={banner} alt="Banner Preview" className="w-full h-24 sm:h-32 object-cover rounded-lg" />
+                <button
+                  onClick={() => setBanner('')}
+                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="h-24 sm:h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+                No banner uploaded
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Courses Table - Responsive */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        {/* Desktop Table */}
+        <div className="hidden md:block">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Chapters</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Students</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {courses.map(course => (
+                <tr key={course._id}>
+                  <td className="px-4 py-4">
+                    <div className="font-medium text-gray-900 text-sm">{course.title}</div>
+                    <div className="text-xs text-gray-500">{course.description?.slice(0, 40)}...</div>
+                  </td>
+                  <td className="px-4 py-4 text-gray-500 text-sm">
+                    {course.chapters?.length || 0}
+                  </td>
+                  <td className="px-4 py-4">
+                    <Link
+                      to={`/admin/courses/${course._id}/students`}
+                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    >
+                      {course.enrolledStudents}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className={`px-2 py-1 text-xs rounded ${course.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {course.isPublished ? 'Published' : 'Draft'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/admin/courses/${course._id}/edit`}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => togglePublish(course._id, course.isPublished)}
+                        className="text-gray-600 hover:text-gray-800 text-sm"
+                      >
+                        {course.isPublished ? 'Unpublish' : 'Publish'}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(course._id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {courses.map(course => (
+            <div key={course._id} className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-medium text-gray-900 text-sm">{course.title}</h3>
+                <span className={`px-2 py-1 text-xs rounded ${course.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                  {course.isPublished ? 'Published' : 'Draft'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">{course.description?.slice(0, 60)}...</p>
+              <div className="flex flex-wrap gap-3 text-xs mb-3">
+                <span className="text-gray-600">{course.chapters?.length || 0} chapters</span>
+                <Link to={`/admin/courses/${course._id}/students`} className="text-blue-600 font-medium">
+                  {course.enrolledStudents} students
+                </Link>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to={`/admin/courses/${course._id}/edit`}
+                  className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                >
+                  Edit
+                </Link>
+                <button
+                  onClick={() => togglePublish(course._id, course.isPublished)}
+                  className="text-gray-600 hover:text-gray-800 text-xs"
+                >
+                  {course.isPublished ? 'Unpublish' : 'Publish'}
+                </button>
+                <button
+                  onClick={() => handleDelete(course._id)}
+                  className="text-red-600 hover:text-red-800 text-xs"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+          {courses.length === 0 && (
+            <div className="text-center py-8 text-gray-500 text-sm">
+              No courses yet. Create your first course!
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

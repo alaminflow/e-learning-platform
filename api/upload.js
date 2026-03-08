@@ -1,0 +1,239 @@
+import { v2 as cloudinary } from 'cloudinary';
+import busboy from 'busboy';
+import { Writable } from 'stream';
+import Settings from './models/Settings.js';
+import connectDB from './lib/db.js';
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req, res) {
+  await connectDB();
+  
+  const { method, url } = req;
+  
+  let path = url.split('?')[0];
+  if (path.startsWith('/api/upload')) {
+    path = path.substring('/api/upload'.length);
+  }
+
+  // Banner upload
+  if (method === 'POST' && (path === '/banner' || path === '/api/banner' || path === '/upload/banner')) {
+    return new Promise((resolve) => {
+      const bb = busboy({ headers: req.headers });
+      let fileBuffer = null;
+      let filename = '';
+      let fileField = '';
+
+      bb.on('file', (fieldname, file, info) => {
+        fileField = fieldname;
+        filename = info.filename;
+        
+        const chunks = [];
+        file.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        
+        file.on('end', () => {
+          fileBuffer = Buffer.concat(chunks);
+        });
+      });
+
+      bb.on('finish', async () => {
+        if (!fileBuffer) {
+          resolve(res.status(400).json({ message: 'No file uploaded' }));
+          return;
+        }
+
+        if (fileField !== 'banner') {
+          resolve(res.status(400).json({ message: 'Invalid field name' }));
+          return;
+        }
+
+        try {
+          const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream({
+              folder: 'tutor/banner',
+              resource_type: 'image',
+              width: 1920,
+              height: 600,
+              crop: 'fill',
+              quality: 'auto',
+              fetch_format: 'auto'
+            }, (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            });
+            
+            uploadStream.end(fileBuffer);
+          });
+
+          await Settings.findOneAndUpdate(
+            { key: 'banner' },
+            { value: result.secure_url },
+            { upsert: true }
+          );
+
+          resolve(res.json({
+            url: result.secure_url
+          }));
+        } catch (error) {
+          console.error('Upload error:', error);
+          resolve(res.status(500).json({ message: error.message }));
+        }
+      });
+
+      bb.on('error', (error) => {
+        console.error('Busboy error:', error);
+        resolve(res.status(400).json({ message: error.message }));
+      });
+
+      req.pipe(bb);
+    });
+  }
+
+  // Get banner
+  if (method === 'GET' && (path === '/banner' || path === '/api/banner')) {
+    const settings = await Settings.findOne({ key: 'banner' });
+    return res.json({ url: settings?.value || '' });
+  }
+
+  // Thumbnail upload
+  if (method === 'POST' && (path === '/thumbnail' || path === '/api/thumbnail' || path === '/upload/thumbnail')) {
+    return new Promise((resolve) => {
+      const bb = busboy({ headers: req.headers });
+      let fileBuffer = null;
+      let filename = '';
+      let fileField = '';
+
+      bb.on('file', (fieldname, file, info) => {
+        fileField = fieldname;
+        filename = info.filename;
+        
+        const chunks = [];
+        file.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        
+        file.on('end', () => {
+          fileBuffer = Buffer.concat(chunks);
+        });
+      });
+
+      bb.on('finish', async () => {
+        if (!fileBuffer) {
+          resolve(res.status(400).json({ message: 'No file uploaded' }));
+          return;
+        }
+
+        if (fileField !== 'thumbnail') {
+          resolve(res.status(400).json({ message: 'Invalid field name' }));
+          return;
+        }
+
+        try {
+          const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream({
+              folder: 'tutor',
+              resource_type: 'image'
+            }, (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            });
+            
+            uploadStream.end(fileBuffer);
+          });
+
+          resolve(res.json({
+            url: result.secure_url
+          }));
+        } catch (error) {
+          console.error('Upload error:', error);
+          resolve(res.status(500).json({ message: error.message }));
+        }
+      });
+
+      bb.on('error', (error) => {
+        console.error('Busboy error:', error);
+        resolve(res.status(400).json({ message: error.message }));
+      });
+
+      req.pipe(bb);
+    });
+  }
+
+  // Notes/PDF upload
+  if (method === 'POST' && (path === '/notes' || path === '/api/notes' || path === '/upload/notes')) {
+    return new Promise((resolve) => {
+      const bb = busboy({ headers: req.headers });
+      let fileBuffer = null;
+      let fileField = '';
+
+      bb.on('file', (fieldname, file, info) => {
+        fileField = fieldname;
+        
+        const chunks = [];
+        file.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        
+        file.on('end', () => {
+          fileBuffer = Buffer.concat(chunks);
+        });
+      });
+
+      bb.on('finish', async () => {
+        if (!fileBuffer) {
+          resolve(res.status(400).json({ message: 'No file uploaded' }));
+          return;
+        }
+
+        if (fileField !== 'notes') {
+          resolve(res.status(400).json({ message: 'Invalid field name' }));
+          return;
+        }
+
+        try {
+          const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream({
+              folder: 'tutor/notes',
+              resource_type: 'raw',
+              format: 'pdf'
+            }, (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            });
+            
+            uploadStream.end(fileBuffer);
+          });
+
+          resolve(res.json({
+            url: result.secure_url,
+            filename: result.original_filename
+          }));
+        } catch (error) {
+          console.error('Upload error:', error);
+          resolve(res.status(500).json({ message: error.message }));
+        }
+      });
+
+      bb.on('error', (error) => {
+        console.error('Busboy error:', error);
+        resolve(res.status(400).json({ message: error.message }));
+      });
+
+      req.pipe(bb);
+    });
+  }
+
+  return res.status(404).json({ message: 'Endpoint not found' });
+}

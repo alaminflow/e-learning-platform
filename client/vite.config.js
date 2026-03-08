@@ -4,15 +4,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: import.meta.env.VITE_API_URL || 'http://localhost:5000',
-        changeOrigin: true
-      },
-      '/uploads': {
-        target: import.meta.env.VITE_API_URL || 'http://localhost:5000',
-        changeOrigin: true
+    port: 3000
+  },
+  build: {
+    target: 'esnext',
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+        }
       }
     }
   }
