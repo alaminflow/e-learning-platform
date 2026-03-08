@@ -18,17 +18,17 @@ const AdminDashboard = () => {
     }
     const token = localStorage.getItem('token');
     Promise.all([
-      fetch('/api/courses/admin/all', {
+      fetch('/api/courses/admin/all?page=1&limit=100', {
         headers: { 'Authorization': `Bearer ${token}` }
       }).then(r => r.json()),
-      fetch('/api/courses/enrollments/pending', {
+      fetch('/api/courses/enrollments/pending?page=1&limit=100', {
         headers: { 'Authorization': `Bearer ${token}` }
       }).then(r => r.json()),
       fetch('/api/upload/banner').then(r => r.json())
     ])
       .then(([coursesData, enrollmentsData, bannerData]) => {
-        setCourses(coursesData);
-        setPendingCount(enrollmentsData.length);
+        setCourses(coursesData.courses || coursesData);
+        setPendingCount(enrollmentsData.enrollments?.length || enrollmentsData.length || 0);
         setBanner(bannerData.url || '');
         setLoading(false);
       })

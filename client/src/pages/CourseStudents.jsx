@@ -26,11 +26,12 @@ const CourseStudents = () => {
     Promise.all([
       fetch(`/api/courses/${id}`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
       fetch(`/api/courses/${id}/students`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-      fetch('/api/auth/users', { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json())
+      fetch('/api/users?page=1&limit=100', { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json())
     ]).then(([courseData, studentsData, usersData]) => {
       setCourse(courseData);
       setStudents(studentsData);
-      setAllUsers(usersData.filter(u => u.role === 'student'));
+      const users = usersData.users || usersData;
+      setAllUsers(users.filter(u => u.role === 'student'));
       setLoading(false);
     });
   };

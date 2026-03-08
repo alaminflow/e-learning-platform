@@ -18,12 +18,12 @@ const PendingEnrollments = () => {
 
   const loadEnrollments = () => {
     const token = localStorage.getItem('token');
-    fetch('/api/courses/enrollments/pending', {
+    fetch('/api/courses/enrollments/pending?page=1&limit=100', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
-        setEnrollments(data);
+        setEnrollments(data.enrollments || data);
         setLoading(false);
       });
   };

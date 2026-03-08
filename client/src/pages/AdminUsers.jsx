@@ -16,12 +16,12 @@ const AdminUsers = () => {
 
   const loadUsers = () => {
     const token = localStorage.getItem('token');
-    fetch('/api/auth/users', {
+    fetch('/api/users?page=1&limit=100', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
-        setUsers(data);
+        setUsers(data.users || data);
         setLoading(false);
       })
       .catch(err => {
