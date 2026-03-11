@@ -1,7 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const StudentProgress = () => {
   const { courseId, studentId } = useParams();
@@ -109,36 +129,62 @@ const StudentProgress = () => {
           <h2 className="text-lg sm:text-xl font-bold mb-4 text-gray-900 dark:text-white">Daily Watch Time</h2>
           {data.graphData && data.graphData.length > 0 ? (
             <div className="h-64 sm:h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.graphData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="#9CA3AF" 
-                    fontSize={12}
-                    tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  />
-                  <YAxis stroke="#9CA3AF" fontSize={12} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1F2937', 
-                      border: 'none', 
-                      borderRadius: '8px',
-                      color: '#fff'
-                    }}
-                    labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="watched" 
-                    stroke="#8B5CF6" 
-                    strokeWidth={2}
-                    dot={{ fill: '#8B5CF6', strokeWidth: 2 }}
-                    activeDot={{ r: 6 }}
-                    name="Videos Watched"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Line
+                data={{
+                  labels: data.graphData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                  datasets: [
+                    {
+                      label: 'Videos Watched',
+                      data: data.graphData.map(d => d.watched),
+                      borderColor: '#8B5CF6',
+                      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                      fill: true,
+                      tension: 0.3,
+                      pointBackgroundColor: '#8B5CF6',
+                      pointBorderColor: '#8B5CF6',
+                      pointRadius: 4,
+                      pointHoverRadius: 6,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      display: false,
+                    },
+                    tooltip: {
+                      backgroundColor: '#1F2937',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      borderRadius: 8,
+                      padding: 12,
+                    },
+                  },
+                  scales: {
+                    x: {
+                      grid: {
+                        color: '#374151',
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        font: { size: 12 },
+                      },
+                    },
+                    y: {
+                      grid: {
+                        color: '#374151',
+                      },
+                      ticks: {
+                        color: '#9CA3AF',
+                        font: { size: 12 },
+                      },
+                      beginAtZero: true,
+                    },
+                  },
+                }}
+              />
             </div>
           ) : (
             <div className="text-center py-10">

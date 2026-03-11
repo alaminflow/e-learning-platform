@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
-const Navbar = () => {
+const Navbar = memo(() => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -137,6 +137,6 @@ const Navbar = () => {
       </div>
     </nav>
   );
-};
+});
 
 export default Navbar;

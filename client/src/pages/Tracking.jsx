@@ -5,10 +5,12 @@ import { useAuth } from '../context/AuthContext';
 const Tracking = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (authLoading) return;
+    
     if (!user) {
       navigate('/login');
       return;
@@ -18,7 +20,7 @@ const Tracking = () => {
       return;
     }
     fetchCourses();
-  }, [user]);
+  }, [user, authLoading]);
 
   const fetchCourses = async () => {
     try {
@@ -35,7 +37,7 @@ const Tracking = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-7xl mx-auto px-4">

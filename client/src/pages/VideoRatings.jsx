@@ -7,10 +7,12 @@ const VideoRatings = () => {
   const [ratings, setRatings] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [user] = useState(null);
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (authLoading) return;
+    
     if (!user) {
       navigate('/login');
       return;
@@ -20,7 +22,7 @@ const VideoRatings = () => {
       return;
     }
     fetchRatings();
-  }, [user, courseId]);
+  }, [user, courseId, authLoading]);
 
   const fetchRatings = async () => {
     try {
@@ -54,7 +56,7 @@ const VideoRatings = () => {
     );
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
         <div className="max-w-7xl mx-auto px-4">
