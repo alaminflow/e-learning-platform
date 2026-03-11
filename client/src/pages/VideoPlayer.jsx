@@ -19,62 +19,31 @@ const VideoPlayer = memo(() => {
   const [userRating, setUserRating] = useState(0);
   const [videoRating, setVideoRating] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [playerReady, setPlayerReady] = useState(false);
+  const [youtubeApiReady, setYoutubeApiReady] = useState(false);
   
   const videoContainerRef = useRef(null);
   const playerRef = useRef(null);
   const hasAutoMarkedRef = useRef(false);
 
   useEffect(() => {
+    if (window.YT && window.YT.Player) {
+      setYoutubeApiReady(true);
+      return;
+    }
+
+    window.onYouTubeIframeAPIReady = () => {
+      setYoutubeApiReady(true);
+    };
+
     const script = document.createElement('script');
     script.src = 'https://www.youtube.com/iframe_api';
     script.async = true;
     document.body.appendChild(script);
 
-    window.onYouTubeIframeAPIReady = () => {
-      if (currentVideo?.youtubeId && !playerRef.current) {
-        createPlayer(currentVideo.youtubeId);
-      }
-    };
-
     return () => {
-      if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
-      }
+      window.onYouTubeIframeAPIReady = undefined;
     };
   }, []);
-
-  const createPlayer = useCallback((youtubeId) => {
-    if (playerRef.current) {
-      playerRef.current.destroy();
-    }
-    
-    playerRef.current = new window.YT.Player('youtube-player', {
-      videoId: youtubeId,
-      playerVars: {
-        autoplay: 0,
-        playback_speed: playbackSpeed,
-        rel: 0,
-        modestbranding: 1,
-      },
-      events: {
-        onReady: () => setPlayerReady(true),
-        onStateChange: (event) => {
-          if (event.data === window.YT.PlayerState.ENDED && !isWatched && !hasAutoMarkedRef.current) {
-            hasAutoMarkedRef.current = true;
-            handleMarkAsWatched();
-          }
-        },
-      },
-    });
-  }, [isWatched]);
-
-  useEffect(() => {
-    if (playerReady && currentVideo?.youtubeId) {
-      createPlayer(currentVideo.youtubeId);
-    }
-  }, [videoId, playerReady, currentVideo?.youtubeId, createPlayer]);
 
   useEffect(() => {
     fetch(`/api/courses/${courseId}`)
@@ -155,7 +124,7 @@ const VideoPlayer = memo(() => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const handleMarkAsWatched = useCallback(async () => {
+  const markAsWatched = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/courses/${courseId}/progress`, {
@@ -175,6 +144,49 @@ const VideoPlayer = memo(() => {
       console.error('Error marking as watched:', error);
     }
   }, [courseId, videoId]);
+
+  useEffect(() => {
+    if (!currentVideo?.youtubeId || !youtubeApiReady) return;
+
+    hasAutoMarkedRef.current = false;
+
+    if (playerRef.current) {
+      playerRef.current.destroy();
+    }
+
+    playerRef.current = new window.YT.Player('youtube-player', {
+      videoId: currentVideo.youtubeId,
+      playerVars: {
+        autoplay: 0,
+        rel: 0,
+        modestbranding: 1,
+      },
+      events: {
+        onReady: () => {},
+        onStateChange: (event) => {
+          if (event.data === window.YT.PlayerState.ENDED) {
+            if (!watchedVideos.includes(videoId) && !hasAutoMarkedRef.current) {
+              hasAutoMarkedRef.current = true;
+              markAsWatched();
+            }
+          }
+        },
+      },
+    });
+
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.destroy();
+        playerRef.current = null;
+      }
+    };
+  }, [currentVideo?.youtubeId, youtubeApiReady, videoId]);
+
+  useEffect(() => {
+    if (playerRef.current && playerRef.current.setPlaybackRate) {
+      playerRef.current.setPlaybackRate(playbackSpeed);
+    }
+  }, [playbackSpeed]);
 
   const handleRateVideo = useCallback(async (rating) => {
     if (submitting) return;
@@ -275,13 +287,7 @@ const VideoPlayer = memo(() => {
         <div className="absolute top-3 right-3 flex gap-2 z-10">
           <select
             value={playbackSpeed}
-            onChange={(e) => {
-              const speed = parseFloat(e.target.value);
-              setPlaybackSpeed(speed);
-              if (playerRef.current && playerRef.current.setPlaybackRate) {
-                playerRef.current.setPlaybackRate(speed);
-              }
-            }}
+            onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
             className="bg-black/80 text-white text-xs sm:text-sm px-2 py-1.5 rounded backdrop-blur-sm cursor-pointer"
           >
             <option value="0.5">0.5x</option>
