@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
-const VideoPlayer = () => {
+const VideoPlayer = memo(() => {
   const { courseId, videoId } = useParams();
   const { user, isEnrolled, checkEnrollment } = useAuth();
-  const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [currentVideo, setCurrentVideo] = useState(null);
   const [currentChapter, setCurrentChapter] = useState(null);
@@ -59,9 +58,9 @@ const VideoPlayer = () => {
       };
       checkEnrolled();
     }
-  }, [user, courseId]);
+  }, [user, courseId, isEnrolled, checkEnrollment]);
 
-  const fetchProgress = async () => {
+  const fetchProgress = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/courses/${courseId}/progress`, {
@@ -72,9 +71,9 @@ const VideoPlayer = () => {
     } catch (error) {
       console.error('Error fetching progress:', error);
     }
-  };
+  }, [courseId]);
 
-  const fetchVideoRating = async () => {
+  const fetchVideoRating = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/courses/${courseId}/chapters/${currentChapter?._id}/videos/${videoId}/rating`, {
@@ -85,15 +84,23 @@ const VideoPlayer = () => {
     } catch (error) {
       console.error('Error fetching rating:', error);
     }
-  };
+  }, [courseId, currentChapter, videoId]);
 
   useEffect(() => {
     if (currentChapter && videoId && enrolled) {
       fetchVideoRating();
     }
-  }, [currentChapter, videoId, enrolled]);
+  }, [currentChapter, videoId, enrolled, fetchVideoRating]);
 
-  const handleMarkAsWatched = async () => {
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const handleMarkAsWatched = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/courses/${courseId}/progress`, {
@@ -106,16 +113,16 @@ const VideoPlayer = () => {
       });
       
       if (res.ok) {
-        setWatchedVideos([...watchedVideos, videoId]);
+        setWatchedVideos(prev => [...prev, videoId]);
         toast.success('Video marked as watched!');
       }
     } catch (error) {
       console.error('Error marking as watched:', error);
       toast.error('Failed to mark as watched');
     }
-  };
+  }, [courseId, videoId]);
 
-  const handleRateVideo = async (rating) => {
+  const handleRateVideo = useCallback(async (rating) => {
     if (submitting) return;
     setSubmitting(true);
     try {
@@ -140,9 +147,9 @@ const VideoPlayer = () => {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [submitting, courseId, currentChapter, videoId, fetchVideoRating]);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       videoContainerRef.current?.requestFullscreen();
       setIsFullscreen(true);
@@ -150,15 +157,22 @@ const VideoPlayer = () => {
       document.exitFullscreen();
       setIsFullscreen(false);
     }
-  };
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  const allVideos = useMemo(() => {
+    if (!course?.chapters) return [];
+    const videos = [];
+    course.chapters.forEach(chapter => {
+      chapter.videos?.forEach(video => {
+        videos.push({ ...video, chapterTitle: chapter.title });
+      });
+    });
+    return videos;
+  }, [course]);
+
+  const currentIndex = useMemo(() => allVideos.findIndex(v => v._id === videoId), [allVideos, videoId]);
+  const nextVideo = useMemo(() => allVideos[currentIndex + 1], [allVideos, currentIndex]);
+  const prevVideo = useMemo(() => allVideos[currentIndex - 1], [allVideos, currentIndex]);
 
   if (loading) {
     return (
@@ -198,21 +212,6 @@ const VideoPlayer = () => {
   }
 
   const isWatched = watchedVideos.includes(videoId);
-
-  const getAllVideos = () => {
-    const videos = [];
-    course.chapters?.forEach(chapter => {
-      chapter.videos?.forEach(video => {
-        videos.push({ ...video, chapterTitle: chapter.title });
-      });
-    });
-    return videos;
-  };
-
-  const allVideos = getAllVideos();
-  const currentIndex = allVideos.findIndex(v => v._id === videoId);
-  const nextVideo = allVideos[currentIndex + 1];
-  const prevVideo = allVideos[currentIndex - 1];
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
@@ -411,6 +410,6 @@ const VideoPlayer = () => {
       </div>
     </div>
   );
-};
+});
 
 export default VideoPlayer;

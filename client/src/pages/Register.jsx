@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
-const Register = () => {
+const Register = memo(() => {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,6 +18,6 @@ const Register = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Register;

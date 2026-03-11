@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const ChangePassword = () => {
+const ChangePassword = memo(() => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -105,6 +105,6 @@ const ChangePassword = () => {
       </div>
     </div>
   );
-};
+});
 
 export default ChangePassword;

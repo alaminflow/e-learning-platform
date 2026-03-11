@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link } from 'react-router-dom';
 
-const Courses = () => {
+const Courses = memo(() => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -177,6 +177,6 @@ const Courses = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Courses;

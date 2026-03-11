@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const AdminDashboard = () => {
+const AdminDashboard = memo(() => {
   const [courses, setCourses] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -283,6 +283,6 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
-};
+});
 
 export default AdminDashboard;

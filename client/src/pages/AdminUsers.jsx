@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const AdminUsers = () => {
+const AdminUsers = memo(() => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -213,6 +213,6 @@ const AdminUsers = () => {
       </div>
     </div>
   );
-};
+});
 
 export default AdminUsers;

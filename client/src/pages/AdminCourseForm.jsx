@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const AdminCourseForm = () => {
+const AdminCourseForm = memo(() => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -537,6 +537,6 @@ const AdminCourseForm = () => {
       </div>
     </div>
   );
-};
+});
 
 export default AdminCourseForm;

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link } from 'react-router-dom';
 
-const Home = () => {
+const Home = memo(() => {
   const [banner, setBanner] = useState('');
+  const [bannerLoading, setBannerLoading] = useState(true);
   const [courses, setCourses] = useState([]);
 
   useEffect(() => {
@@ -15,21 +16,26 @@ const Home = () => {
         const courses = coursesData.courses || coursesData;
         setCourses(courses.slice(0, 6));
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setBannerLoading(false));
   }, []);
 
   return (
     <div className="min-h-screen">
       {/* Banner Section */}
-      {banner && (
+      {(banner || bannerLoading) && (
         <div className="relative h-56 sm:h-80 md:h-96 w-full overflow-hidden">
-          <img 
-            src={banner} 
-            alt="Banner" 
-            className="w-full h-full object-cover"
-            loading="eager"
-            decoding="async"
-          />
+          {bannerLoading ? (
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 animate-pulse" />
+          ) : banner ? (
+            <img 
+              src={banner} 
+              alt="Banner" 
+              className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
+            />
+          ) : null}
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/40 flex flex-col items-center justify-center">
             <div className="text-center text-white px-4 max-w-4xl mb-6">
               <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 drop-shadow-lg">
@@ -194,6 +200,6 @@ const Home = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Home;

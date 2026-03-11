@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const CourseProgress = () => {
+const CourseProgress = memo(() => {
   const { courseId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -166,6 +166,6 @@ const CourseProgress = () => {
       </div>
     </div>
   );
-};
+});
 
 export default CourseProgress;

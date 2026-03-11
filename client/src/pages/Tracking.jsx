@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const Tracking = () => {
+const Tracking = memo(() => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
@@ -148,6 +148,6 @@ const Tracking = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Tracking;

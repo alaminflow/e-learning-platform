@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const RegisterWithOTP = () => {
+const RegisterWithOTP = memo(() => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -206,6 +206,6 @@ const RegisterWithOTP = () => {
       </div>
     </div>
   );
-};
+});
 
 export default RegisterWithOTP;

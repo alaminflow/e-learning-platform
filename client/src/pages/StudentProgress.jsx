@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -23,7 +23,7 @@ ChartJS.register(
   Legend
 );
 
-const StudentProgress = () => {
+const StudentProgress = memo(() => {
   const { courseId, studentId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -229,6 +229,6 @@ const StudentProgress = () => {
       </div>
     </div>
   );
-};
+});
 
 export default StudentProgress;

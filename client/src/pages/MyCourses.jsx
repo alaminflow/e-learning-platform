@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const MyCourses = () => {
+const MyCourses = memo(() => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -110,6 +110,6 @@ const MyCourses = () => {
       </div>
     </div>
   );
-};
+});
 
 export default MyCourses;

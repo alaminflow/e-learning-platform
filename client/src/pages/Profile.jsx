@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const Profile = () => {
+const Profile = memo(() => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -140,6 +140,6 @@ const Profile = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Profile;

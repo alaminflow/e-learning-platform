@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const ForgotPassword = () => {
+const ForgotPassword = memo(() => {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -208,6 +208,6 @@ const ForgotPassword = () => {
       </div>
     </div>
   );
-};
+});
 
 export default ForgotPassword;

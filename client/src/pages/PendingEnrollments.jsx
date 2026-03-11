@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const PendingEnrollments = () => {
+const PendingEnrollments = memo(() => {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -141,6 +141,6 @@ const PendingEnrollments = () => {
       )}
     </div>
   );
-};
+});
 
 export default PendingEnrollments;

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
-const CourseDetail = () => {
+const CourseDetail = memo(() => {
   const { id } = useParams();
   const { user, isEnrolled, checkEnrollment, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -26,19 +26,7 @@ const CourseDetail = () => {
       });
   }, [id]);
 
-  useEffect(() => {
-    if (user) {
-      if (isEnrolled(id)) {
-        setIsUserEnrolled(true);
-      } else {
-        checkEnrollment(id).then(result => {
-          setIsUserEnrolled(result);
-        });
-      }
-    }
-  }, [user, id, isEnrolled, checkEnrollment]);
-
-  const checkEnrollmentStatus = async () => {
+  const checkEnrollmentStatus = useCallback(async () => {
     if (!user) return;
     const token = localStorage.getItem('token');
     
@@ -52,6 +40,7 @@ const CourseDetail = () => {
           setEnrollmentStatus('pending');
         } else if (data.status === 'approved') {
           setEnrollmentStatus('approved');
+          setIsUserEnrolled(true);
         } else {
           setEnrollmentStatus(null);
         }
@@ -59,13 +48,27 @@ const CourseDetail = () => {
     } catch (err) {
       console.error('Error checking enrollment:', err);
     }
-  };
-
-  useEffect(() => {
-    if (user) checkEnrollmentStatus();
   }, [user, id]);
 
-  const handleEnroll = async () => {
+  useEffect(() => {
+    if (user) {
+      if (isEnrolled(id)) {
+        setIsUserEnrolled(true);
+        setEnrollmentStatus('approved');
+      } else {
+        checkEnrollment(id).then(result => {
+          setIsUserEnrolled(result);
+          if (result) {
+            setEnrollmentStatus('approved');
+          } else {
+            checkEnrollmentStatus();
+          }
+        });
+      }
+    }
+  }, [user, id, isEnrolled, checkEnrollment, checkEnrollmentStatus]);
+
+  const handleEnroll = useCallback(async () => {
     if (!user) {
       navigate('/login');
       return;
@@ -87,6 +90,7 @@ const CourseDetail = () => {
     } else {
       if (data.message === 'Already enrolled') {
         setEnrollmentStatus('approved');
+        setIsUserEnrolled(true);
         refreshUser();
       } else if (data.message === 'Please verify your email before enrolling') {
         toast.error(data.message);
@@ -95,7 +99,7 @@ const CourseDetail = () => {
       }
     }
     setEnrolling(false);
-  };
+  }, [user, id, navigate, refreshUser]);
 
   if (loading) {
     return (
@@ -201,6 +205,6 @@ const CourseDetail = () => {
       </div>
     </div>
   );
-};
+});
 
 export default CourseDetail;

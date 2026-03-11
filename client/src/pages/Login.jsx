@@ -1,15 +1,13 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useAuth as useGoogleAuth } from '../context/AuthContext';
 
-const Login = () => {
+const Login = memo(() => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const { googleAuth } = useGoogleAuth();
+  const { login, googleAuth } = useAuth();
   const navigate = useNavigate();
 
   const handleGoogleResponse = async (response) => {
@@ -99,6 +97,6 @@ const Login = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Login;

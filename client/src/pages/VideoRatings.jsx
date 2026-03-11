@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const VideoRatings = () => {
+const VideoRatings = memo(() => {
   const { courseId } = useParams();
   const [ratings, setRatings] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -212,7 +212,7 @@ const VideoRatings = () => {
       </div>
     </div>
   );
-};
+});
 
 const ProtectedVideoRatings = () => {
   const { user } = useAuth();
