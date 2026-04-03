@@ -24,7 +24,7 @@ const Navbar = memo(() => {
           >
             <img 
               src="/logo.png" 
-              alt="Bipul's Class Room" 
+              alt="Bipul's Classroom" 
               className="h-8 sm:h-10 w-auto"
             />
           </Link>
