@@ -28,36 +28,98 @@ const AdminCourseForm = memo(() => {
   const [uploading, setUploading] = useState(false);
   const [notesUploading, setNotesUploading] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState({});
+  const [newNoteUrl, setNewNoteUrl] = useState({});
 
-  const handleThumbnailUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleUploadNotes = async (chapterId, file) => {
+    if (!file || file.type !== 'application/pdf') {
+      alert('Please upload a PDF file');
+      return;
+    }
     
-    setUploading(true);
+    setNotesUploading(true);
     const formData = new FormData();
-    formData.append('thumbnail', file);
+    formData.append('notes', file);
     
     const token = localStorage.getItem('token');
-    console.log('Uploading thumbnail...');
     
-    const res = await fetch('/api/upload/thumbnail', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData
-    });
-    
-    console.log('Upload response:', res.status);
-    
-    if (res.ok) {
-      const data = await res.json();
-      console.log('Upload success:', data);
-      setCourse({ ...course, thumbnail: data.url });
-    } else {
-      const error = await res.json();
-      console.error('Upload error:', error);
-      alert('Upload failed: ' + (error.message || 'Unknown error'));
+    try {
+      const res = await fetch('/api/upload/notes', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const title = newNoteTitle[chapterId] || 'Notes ' + ((course.chapters?.find(c => c._id === chapterId)?.notes?.length || 0) + 1);
+        
+        const saveRes = await fetch(`/api/courses/${id}/chapters/${chapterId}/notes`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ title, url: data.url })
+        });
+        
+        if (saveRes.ok) {
+          const updatedCourse = await saveRes.json();
+          setCourse(updatedCourse);
+          setNewNoteTitle({ ...newNoteTitle, [chapterId]: '' });
+          alert('Notes uploaded successfully!');
+        }
+      } else {
+        alert('Upload failed');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Upload failed');
     }
-    setUploading(false);
+    setNotesUploading(false);
+    setShowNotesForm('');
+  };
+
+  const handleAddGoogleDriveNote = async (chapterId) => {
+    const url = newNoteUrl[chapterId]?.trim();
+    if (!url) {
+      alert('Please enter a Google Drive link');
+      return;
+    }
+
+    if (!url.includes('drive.google.com') && !url.includes('docs.google.com')) {
+      alert('Please enter a valid Google Drive or Google Docs link');
+      return;
+    }
+
+    setNotesUploading(true);
+    const token = localStorage.getItem('token');
+    const title = newNoteTitle[chapterId] || 'Notes ' + ((course.chapters?.find(c => c._id === chapterId)?.notes?.length || 0) + 1);
+
+    try {
+      const saveRes = await fetch(`/api/courses/${id}/chapters/${chapterId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title, url })
+      });
+
+      if (saveRes.ok) {
+        const updatedCourse = await saveRes.json();
+        setCourse(updatedCourse);
+        setNewNoteTitle({ ...newNoteTitle, [chapterId]: '' });
+        setNewNoteUrl({ ...newNoteUrl, [chapterId]: '' });
+        alert('Google Drive note added successfully!');
+      } else {
+        alert('Failed to add note');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to add note');
+    }
+    setNotesUploading(false);
+    setShowNotesForm('');
   };
 
   useEffect(() => {
@@ -184,55 +246,6 @@ const AdminCourseForm = memo(() => {
       const data = await res.json();
       setCourse(data);
     }
-  };
-
-  const handleUploadNotes = async (chapterId, file) => {
-    if (!file || file.type !== 'application/pdf') {
-      alert('Please upload a PDF file');
-      return;
-    }
-    
-    setNotesUploading(true);
-    const formData = new FormData();
-    formData.append('notes', file);
-    
-    const token = localStorage.getItem('token');
-    
-    try {
-      const res = await fetch('/api/upload/notes', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        const title = newNoteTitle[chapterId] || 'Notes ' + ((course.chapters?.find(c => c._id === chapterId)?.notes?.length || 0) + 1);
-        
-        const saveRes = await fetch(`/api/courses/${id}/chapters/${chapterId}/notes`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ title, url: data.url })
-        });
-        
-        if (saveRes.ok) {
-          const updatedCourse = await saveRes.json();
-          setCourse(updatedCourse);
-          setNewNoteTitle({ ...newNoteTitle, [chapterId]: '' });
-          alert('Notes uploaded successfully!');
-        }
-      } else {
-        alert('Upload failed');
-      }
-    } catch (error) {
-      console.error(error);
-      alert('Upload failed');
-    }
-    setNotesUploading(false);
-    setShowNotesForm('');
   };
 
   const handleDeleteSingleNote = async (chapterId, noteId) => {
@@ -445,7 +458,7 @@ const AdminCourseForm = memo(() => {
                   )}
                   
                   {showNotesForm === chapter._id && (
-                    <div className="bg-green-50 p-4 rounded-lg mb-3 border border-green-200">
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg mb-3 border border-green-200 dark:border-green-800">
                       <div className="mb-3">
                         <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Notes Title</label>
                         <input
@@ -456,17 +469,47 @@ const AdminCourseForm = memo(() => {
                           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Upload PDF</label>
-                        <input
-                          type="file"
-                          accept="application/pdf"
-                          onChange={(e) => handleUploadNotes(chapter._id, e.target.files[0])}
-                          disabled={notesUploading}
-                          className="w-full text-sm text-gray-700 dark:text-gray-300"
-                        />
+
+                      <div className="space-y-4">
+                        {/* PDF Upload Option */}
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Option 1: Upload PDF</label>
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) => handleUploadNotes(chapter._id, e.target.files[0])}
+                            disabled={notesUploading}
+                            className="w-full text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-violet-100 dark:file:bg-violet-900 file:text-violet-700 dark:file:text-violet-300 file:cursor-pointer file:transition file:hover:bg-violet-200 dark:file:hover:bg-violet-800"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-center">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">OR</span>
+                        </div>
+
+                        {/* Google Drive Link Option */}
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Option 2: Google Drive Link</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              placeholder="Paste Google Drive or Docs link here..."
+                              value={newNoteUrl[chapter._id] || ''}
+                              onChange={(e) => setNewNoteUrl({ ...newNoteUrl, [chapter._id]: e.target.value })}
+                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <button
+                              onClick={() => handleAddGoogleDriveNote(chapter._id)}
+                              disabled={notesUploading}
+                              className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      {notesUploading && <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Uploading...</p>}
+
+                      {notesUploading && <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Processing...</p>}
                     </div>
                   )}
 
