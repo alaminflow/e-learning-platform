@@ -329,11 +329,6 @@ export default async function handler(req, res) {
       course: courseId,
       status: 'pending'
     });
-
-    if (!course.enrolledStudents.includes(req.user._id)) {
-      course.enrolledStudents.push(req.user._id);
-      await course.save();
-    }
     
     return res.json({ message: 'Enrollment request sent. Waiting for admin approval.' });
   }
@@ -347,13 +342,23 @@ export default async function handler(req, res) {
     const adminError = admin(req, res);
     if (adminError) return adminError;
     
-    const course = await Course.findById(courseId).populate('enrolledStudents', 'name email createdAt');
+    const enrollments = await Enrollment.find({ 
+      course: courseId, 
+      status: 'approved' 
+    }).populate('student', 'name email createdAt');
     
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+    if (!enrollments.length) {
+      return res.json([]);
     }
     
-    return res.json(course.enrolledStudents || []);
+    const students = enrollments.map(e => ({
+      _id: e.student._id,
+      name: e.student.name,
+      email: e.student.email,
+      createdAt: e.student.createdAt
+    }));
+    
+    return res.json(students);
   }
 
   // POST /api/courses/:id/students
@@ -375,6 +380,25 @@ export default async function handler(req, res) {
     const student = await User.findById(studentId);
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
+    }
+    
+    const existingEnrollment = await Enrollment.findOne({
+      student: studentId,
+      course: courseId
+    });
+    
+    if (existingEnrollment) {
+      if (existingEnrollment.status === 'approved') {
+        return res.status(400).json({ message: 'Student already enrolled' });
+      }
+      existingEnrollment.status = 'approved';
+      await existingEnrollment.save();
+    } else {
+      await Enrollment.create({
+        student: studentId,
+        course: courseId,
+        status: 'approved'
+      });
     }
     
     if (!course.enrolledStudents.includes(studentId)) {
@@ -474,6 +498,12 @@ export default async function handler(req, res) {
     if (enrollment) {
       enrollment.status = 'rejected';
       await enrollment.save();
+    }
+    
+    const course = await Course.findById(courseId);
+    if (course) {
+      course.enrolledStudents.pull(studentId);
+      await course.save();
     }
     
     const student = await User.findById(studentId);
@@ -782,6 +812,20 @@ export default async function handler(req, res) {
       const course = await Course.findById(enrollment.course);
       if (course && !course.enrolledStudents.includes(enrollment.student)) {
         course.enrolledStudents.push(enrollment.student);
+        await course.save();
+      }
+    }
+    
+    if (action === 'reject') {
+      const student = await User.findById(enrollment.student);
+      if (student) {
+        student.enrolledCourses.pull(enrollment.course);
+        await student.save();
+      }
+      
+      const course = await Course.findById(enrollment.course);
+      if (course) {
+        course.enrolledStudents.pull(enrollment.student);
         await course.save();
       }
     }

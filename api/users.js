@@ -14,6 +14,11 @@ const getPath = (url) => {
 };
 
 export default async function handler(req, res) {
+  const contentLength = req.headers['content-length'];
+  if (contentLength && parseInt(contentLength) > 1024 * 1024) {
+    return res.status(413).json({ message: 'Request too large' });
+  }
+  
   try {
     await connectDB();
   } catch (error) {
@@ -122,16 +127,22 @@ export default async function handler(req, res) {
         .populate('createdBy', 'name')
         .sort('-createdAt');
 
-      const coursesWithStats = await Promise.all(courses.map(async (course) => {
-        const enrollments = await Enrollment.find({
-          course: course._id,
-          status: 'approved'
-        });
+      const courseIds = courses.map(c => c._id);
+      const enrollments = await Enrollment.find({
+        course: { $in: courseIds },
+        status: 'approved'
+      });
 
-        let totalWatched = 0;
-        enrollments.forEach(e => {
-          totalWatched += e.watchedVideos.length;
-        });
+      const enrollmentByCourse = enrollments.reduce((acc, e) => {
+        const key = e.course.toString();
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(e);
+        return acc;
+      }, {});
+
+      const coursesWithStats = courses.map(course => {
+        const courseEnrollments = enrollmentByCourse[course._id.toString()] || [];
+        const totalWatched = courseEnrollments.reduce((sum, e) => sum + e.watchedVideos.length, 0);
 
         return {
           _id: course._id,
@@ -139,13 +150,13 @@ export default async function handler(req, res) {
           description: course.description,
           category: course.category,
           createdBy: course.createdBy,
-          totalStudents: course.enrolledStudents?.length || 0,
+          totalStudents: courseEnrollments.length,
           totalWatchedVideos: totalWatched,
-          avgWatchedPerStudent: course.enrolledStudents?.length > 0 
-            ? Math.round(totalWatched / course.enrolledStudents.length) 
+          avgWatchedPerStudent: courseEnrollments.length > 0 
+            ? Math.round(totalWatched / courseEnrollments.length) 
             : 0
         };
-      }));
+      });
 
       return res.json(coursesWithStats);
     }

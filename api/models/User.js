@@ -1,6 +1,14 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+const constantTimeEqual = (a, b) => {
+  if (typeof a === 'string') a = Buffer.from(a);
+  if (typeof b === 'string') b = Buffer.from(b);
+  if (!Buffer.isBuffer(a) || !Buffer.isBuffer(b)) return false;
+  if (a.length !== b.length) return false;
+  return Buffer.compare(a, b) === 0;
+};
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -84,7 +92,7 @@ userSchema.methods.verifyOTP = function(otp, type = 'verification') {
   if (new Date() > otpData.expiresAt) {
     return false;
   }
-  return otpData.code === otp;
+  return constantTimeEqual(otpData.code, otp);
 };
 
 userSchema.methods.clearOTP = function(type = 'verification') {

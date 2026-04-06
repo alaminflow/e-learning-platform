@@ -12,7 +12,6 @@ const Courses = lazy(() => import("./pages/Courses"));
 const CourseDetail = lazy(() => import("./pages/CourseDetail"));
 const VideoPlayer = lazy(() => import("./pages/VideoPlayer"));
 const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
 const RegisterWithOTP = lazy(() => import("./pages/RegisterWithOTP"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
@@ -52,8 +51,7 @@ function App() {
                   element={<VideoPlayer />}
                 />
                 <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/register-otp" element={<RegisterWithOTP />} />
+                <Route path="/register" element={<RegisterWithOTP />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/change-password" element={<ChangePassword />} />
                 <Route path="/my-courses" element={<MyCourses />} />
