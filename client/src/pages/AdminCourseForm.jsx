@@ -556,7 +556,10 @@ const AdminCourseForm = memo(() => {
                         + Add Notes
                       </button>
                       <button
-                        onClick={() => setShowVideoForm(chapter._id)}
+                        onClick={() => {
+                          setShowVideoForm(chapter._id);
+                          setNewVideo({ ...newVideo, chapterId: chapter._id });
+                        }}
                         className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition"
                       >
                         + Add Video
