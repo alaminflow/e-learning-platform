@@ -336,21 +336,35 @@ const AdminCourseForm = memo(() => {
   };
 
   const handleAddVideo = async () => {
-    if (!newVideo.title || !newVideo.youtubeUrl) return;
+    if (!newVideo.youtubeUrl) {
+      alert('Please enter a YouTube URL');
+      return;
+    }
+    
     const token = localStorage.getItem('token');
+    const videoData = {
+      title: newVideo.title || 'Untitled Video',
+      youtubeUrl: newVideo.youtubeUrl
+    };
+    
     const res = await fetch(`/api/courses/${id}/chapters/${newVideo.chapterId}/videos`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(newVideo)
+      body: JSON.stringify(videoData)
     });
+    
     if (res.ok) {
       const data = await res.json();
       setCourse(data);
       setNewVideo({ chapterId: '', title: '', youtubeUrl: '' });
       setShowVideoForm('');
+      alert('Video added successfully!');
+    } else {
+      const err = await res.json();
+      alert('Error: ' + err.message);
     }
   };
 
