@@ -180,12 +180,14 @@ export default async function handler(req, res) {
       const enrollments = await Enrollment.find({
         course: courseId,
         status: 'approved'
-      }).populate('student', 'name email');
+      }).populate('student', 'name email role');
 
       const totalVideos = course.chapters.reduce((acc, ch) => acc + ch.videos.length, 0);
 
       let totalWatchTime = 0;
-      const studentsWithProgress = enrollments.map(enrollment => {
+      const studentsWithProgress = enrollments
+        .filter(e => e.student.role !== 'admin')
+        .map(enrollment => {
         const watchedCount = enrollment.watchedVideos.length;
         totalWatchTime += watchedCount;
         const progress = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;

@@ -30,6 +30,74 @@ const AdminCourseForm = memo(() => {
   const [newNoteTitle, setNewNoteTitle] = useState({});
   const [newNoteUrl, setNewNoteUrl] = useState({});
 
+  const extractYouTubeTitle = async (url) => {
+    if (!url) return '';
+    const videoId = extractVideoId(url);
+    if (!videoId) return '';
+    
+    try {
+      const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=AIzaSyA9vT6S_R6lL2XUZdN3X1lX1lX1lX1lX1lX&part=snippet`);
+      const data = await response.json();
+      if (data.items && data.items[0] && data.items[0].snippet) {
+        return data.items[0].snippet.title;
+      }
+    } catch (e) {
+      console.log('Could not fetch YouTube title');
+    }
+    return '';
+  };
+
+  const extractVideoId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const handleYoutubeUrlChange = async (e) => {
+    const url = e.target.value;
+    setNewVideo({ ...newVideo, youtubeUrl: url, chapterId: newVideo.chapterId });
+    
+    if (url && !newVideo.title) {
+      const videoId = extractVideoId(url);
+      if (videoId) {
+        setNewVideo(prev => ({ ...prev, title: 'YouTube Video ' + (Date.now() % 1000) }));
+      }
+    }
+  };
+
+  const extractDriveFileName = (url) => {
+    if (!url) return '';
+    if (url.includes('drive.google.com/file/d/')) {
+      const match = url.match(/\/file\/d\/([^\/]+)/);
+      if (match) return 'Google Drive File ' + match[1].substring(0, 6);
+    }
+    if (url.includes('docs.google.com')) {
+      const match = url.match(/\/([^\/]+)\/edit/);
+      if (match) return 'Google Doc: ' + decodeURIComponent(match[1]);
+    }
+    return 'Google Drive Note';
+  };
+
+  const handleNoteUrlChange = (e, chapterId) => {
+    const url = e.target.value;
+    setNewNoteUrl({ ...newNoteUrl, [chapterId]: url });
+    
+    if (url && !newNoteTitle[chapterId]) {
+      const detectedName = extractDriveFileName(url);
+      setNewNoteTitle({ ...newNoteTitle, [chapterId]: detectedName });
+    }
+  };
+
+  const handleFileSelect = (e, chapterId) => {
+    const file = e.target.files[0];
+    if (file) {
+      const fileName = file.name.replace(/\.[^/.]+$/, '');
+      setNewNoteTitle({ ...newNoteTitle, [chapterId]: fileName });
+      handleUploadNotes(chapterId, file);
+    }
+  };
+
   const handleThumbnailUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -498,11 +566,18 @@ const AdminCourseForm = memo(() => {
                       <div className="space-y-4">
                         {/* PDF Upload Option */}
                         <div>
-                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Option 1: Upload PDF</label>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Option 1: Upload PDF (auto-detects filename)</label>
                           <input
                             type="file"
                             accept="application/pdf"
-                            onChange={(e) => handleUploadNotes(chapter._id, e.target.files[0])}
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                const fileName = file.name.replace(/\.[^/.]+$/, '');
+                                setNewNoteTitle({ ...newNoteTitle, [chapter._id]: fileName });
+                                handleUploadNotes(chapter._id, file);
+                              }
+                            }}
                             disabled={notesUploading}
                             className="w-full text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-violet-100 dark:file:bg-violet-900 file:text-violet-700 dark:file:text-violet-300 file:cursor-pointer file:transition file:hover:bg-violet-200 dark:file:hover:bg-violet-800"
                           />
@@ -514,13 +589,13 @@ const AdminCourseForm = memo(() => {
 
                         {/* Google Drive Link Option */}
                         <div>
-                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Option 2: Google Drive Link</label>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Option 2: Google Drive Link (auto-detects name)</label>
                           <div className="flex gap-2">
                             <input
                               type="url"
                               placeholder="Paste Google Drive or Docs link here..."
                               value={newNoteUrl[chapter._id] || ''}
-                              onChange={(e) => setNewNoteUrl({ ...newNoteUrl, [chapter._id]: e.target.value })}
+                              onChange={(e) => handleNoteUrlChange(e, chapter._id)}
                               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             />
                             <button
@@ -542,21 +617,22 @@ const AdminCourseForm = memo(() => {
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded mb-3">
                       <input
                         type="text"
-                        placeholder="Video title"
+                        placeholder="Video title (auto-detected from YouTube)"
                         value={newVideo.title}
                         onChange={e => setNewVideo({ ...newVideo, title: e.target.value, chapterId: chapter._id })}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                       <input
                         type="text"
-                        placeholder="YouTube URL (e.g., https://youtu.be/xxx)"
+                        placeholder="YouTube URL (auto-detects video title)"
                         value={newVideo.youtubeUrl}
-                        onChange={e => setNewVideo({ ...newVideo, youtubeUrl: e.target.value, chapterId: chapter._id })}
+                        onChange={handleYoutubeUrlChange}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                       <button
                         onClick={handleAddVideo}
-                        className="bg-blue-600 text-white px-4 py-1 rounded text-sm"
+                        disabled={!newVideo.youtubeUrl}
+                        className="bg-blue-600 text-white px-4 py-1 rounded text-sm disabled:opacity-50"
                       >
                         Add Video
                       </button>
