@@ -183,9 +183,22 @@ export default async function handler(req, res) {
 
     const total = await Course.countDocuments(query);
     
+    const courseIds = courses.map(c => c._id);
+    const enrollments = await Enrollment.find({
+      course: { $in: courseIds },
+      status: 'approved'
+    }).populate('student', 'role');
+    
+    const enrollmentCountByCourse = {};
+    enrollments.forEach(e => {
+      if (e.student && e.student.role === 'admin') return;
+      const key = e.course.toString();
+      enrollmentCountByCourse[key] = (enrollmentCountByCourse[key] || 0) + 1;
+    });
+
     const coursesWithEnrollments = courses.map(course => ({
       ...course.toObject(),
-      enrolledStudents: course.enrolledStudents ? course.enrolledStudents.length : 0
+      enrolledStudents: enrollmentCountByCourse[course._id.toString()] || 0
     }));
     
     return res.json({
@@ -820,15 +833,17 @@ export default async function handler(req, res) {
     
     if (action === 'approve') {
       const student = await User.findById(enrollment.student);
-      if (student && !student.enrolledCourses.includes(enrollment.course)) {
-        student.enrolledCourses.push(enrollment.course);
-        await student.save();
-      }
+      if (student && student.role !== 'admin') {
+        if (!student.enrolledCourses.includes(enrollment.course)) {
+          student.enrolledCourses.push(enrollment.course);
+          await student.save();
+        }
 
-      const course = await Course.findById(enrollment.course);
-      if (course && !course.enrolledStudents.includes(enrollment.student)) {
-        course.enrolledStudents.push(enrollment.student);
-        await course.save();
+        const course = await Course.findById(enrollment.course);
+        if (course && !course.enrolledStudents.includes(enrollment.student)) {
+          course.enrolledStudents.push(enrollment.student);
+          await course.save();
+        }
       }
     }
     

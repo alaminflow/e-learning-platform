@@ -132,9 +132,10 @@ export default async function handler(req, res) {
       const enrollments = await Enrollment.find({
         course: { $in: courseIds },
         status: 'approved'
-      });
+      }).populate('student', 'role');
 
       const enrollmentByCourse = enrollments.reduce((acc, e) => {
+        if (e.student && e.student.role === 'admin') return acc;
         const key = e.course.toString();
         if (!acc[key]) acc[key] = [];
         acc[key].push(e);
@@ -144,6 +145,11 @@ export default async function handler(req, res) {
       const coursesWithStats = courses.map(course => {
         const courseEnrollments = enrollmentByCourse[course._id.toString()] || [];
         const totalWatched = courseEnrollments.reduce((sum, e) => sum + e.watchedVideos.length, 0);
+        
+        const allVideoRatings = courseEnrollments.flatMap(e => e.videoRatings || []);
+        const avgRating = allVideoRatings.length > 0 
+          ? (allVideoRatings.reduce((acc, r) => acc + r.rating, 0) / allVideoRatings.length).toFixed(1)
+          : 0;
 
         return {
           _id: course._id,
@@ -155,7 +161,9 @@ export default async function handler(req, res) {
           totalWatchedVideos: totalWatched,
           avgWatchedPerStudent: courseEnrollments.length > 0 
             ? Math.round(totalWatched / courseEnrollments.length) 
-            : 0
+            : 0,
+          averageRating: parseFloat(avgRating),
+          totalRatings: allVideoRatings.length
         };
       });
 
@@ -205,8 +213,8 @@ export default async function handler(req, res) {
         };
       });
 
-      const avgWatchTime = enrollments.length > 0 
-        ? Math.round(totalWatchTime / enrollments.length) 
+      const avgWatchTime = studentsWithProgress.length > 0 
+        ? Math.round(totalWatchTime / studentsWithProgress.length) 
         : 0;
 
       return res.json({
@@ -214,7 +222,7 @@ export default async function handler(req, res) {
           _id: course._id,
           title: course.title,
           totalVideos,
-          totalStudents: enrollments.length
+          totalStudents: studentsWithProgress.length
         },
         avgWatchTime,
         students: studentsWithProgress

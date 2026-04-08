@@ -1,7 +1,7 @@
 import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { BarChart3, ArrowLeft, Loader2, BookOpen, Users, TrendingUp } from 'lucide-react';
+import { BarChart3, ArrowLeft, Loader2, BookOpen, Users, TrendingUp, Star } from 'lucide-react';
 
 const Tracking = memo(() => {
   const [courses, setCourses] = useState([]);
@@ -63,9 +63,28 @@ const Tracking = memo(() => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-slate-900 dark:text-white truncate">{course.title}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{course.enrolledStudents?.length || 0} students</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{course.totalStudents || 0} students</p>
                   </div>
                 </div>
+                
+                {/* Stats Row */}
+                <div className="flex items-center justify-between mb-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{course.totalStudents || 0}</span>
+                  </div>
+                  
+                  {course.averageRating > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{course.averageRating}</span>
+                      <span className="text-xs text-slate-400">({course.totalRatings})</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-medium text-sm">
                   <TrendingUp className="w-4 h-4" />
                   View Progress

@@ -1,6 +1,7 @@
-import { useState, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, memo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Lock, ArrowLeft, Loader2, KeyRound } from 'lucide-react';
 
 const ChangePassword = memo(() => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -9,8 +10,14 @@ const ChangePassword = memo(() => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { changePassword } = useAuth();
+  const { user, changePassword } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login', { state: { from: '/change-password' } });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,64 +51,119 @@ const ChangePassword = memo(() => {
     }
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-violet-600 animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-lg mx-auto px-4 py-8 sm:py-12 md:py-16">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8 md:p-10">
-        <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 text-gray-900 dark:text-white">Change Password</h2>
-        
-        {success && (
-          <div className="bg-green-100 dark:bg-green-900/30 border border-green-400 text-green-700 dark:text-green-300 px-4 py-3 rounded mb-4 text-sm sm:text-base">
-            {success}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center px-4 py-12">
+      {/* Background Decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-32 w-64 h-64 bg-violet-200 dark:bg-violet-900/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-64 h-64 bg-emerald-200 dark:bg-emerald-900/20 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-md">
+        {/* Back Link */}
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 text-sm font-medium mb-6 transition duration-200 cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Home
+        </Link>
+
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-8 sm:p-10">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-emerald-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <KeyRound className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2">
+              Change Password
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400">
+              Update your account password
+            </p>
           </div>
-        )}
-        
-        {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4 text-sm sm:text-base">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit}>
-          <div className="mb-5 sm:mb-6">
-            <label className="block text-gray-700 dark:text-gray-300 mb-2 text-sm sm:text-base">Current Password</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm sm:text-base"
-              required
-            />
-          </div>
-          <div className="mb-5 sm:mb-6">
-            <label className="block text-gray-700 dark:text-gray-300 mb-2 text-sm sm:text-base">New Password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm sm:text-base"
-              required
-              minLength={6}
-            />
-          </div>
-          <div className="mb-6 sm:mb-8">
-            <label className="block text-gray-700 dark:text-gray-300 mb-2 text-sm sm:text-base">Confirm New Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm sm:text-base"
-              required
-              minLength={6}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 dark:bg-blue-600 text-white py-3 sm:py-4 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-700 disabled:opacity-50 text-base sm:text-lg font-medium"
-          >
-            {loading ? 'Changing...' : 'Change Password'}
-          </button>
-        </form>
+          
+          {success && (
+            <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 px-4 py-3 rounded-xl mb-6">
+              <Lock className="w-5 h-5" />
+              <span className="text-sm font-medium">{success}</span>
+            </div>
+          )}
+          
+          {error && (
+            <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 px-4 py-3 rounded-xl mb-6">
+              <span className="text-sm font-medium">{error}</span>
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit}>
+            <div className="mb-5">
+              <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2 text-sm">Current Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-base"
+                  required
+                />
+              </div>
+            </div>
+            <div className="mb-5">
+              <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2 text-sm">New Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-base"
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+            <div className="mb-8">
+              <label className="block text-slate-700 dark:text-slate-300 font-medium mb-2 text-sm">Confirm New Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-base"
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold text-base transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Changing...
+                </>
+              ) : (
+                <>
+                  Change Password
+                </>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
