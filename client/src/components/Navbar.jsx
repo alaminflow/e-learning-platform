@@ -15,24 +15,31 @@ const Navbar = memo(() => {
     navigate('/');
   };
 
+  const navLinkClass = "text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition duration-200 text-sm sm:text-base";
+  const mobileNavLinkClass = "block w-full text-left px-4 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-600 dark:hover:text-violet-400 transition duration-200";
+
   return (
     <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4">
-        <div className="flex justify-between h-14 sm:h-16 items-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-14 sm:h-16 md:h-18">
+          {/* Logo */}
           <Link 
             to="/" 
-            className="flex items-center"
+            className="flex-shrink-0 flex items-center group"
           >
             <img 
               src="/logo.png" 
               alt="Bipul's Classroom" 
-              className="h-8 sm:h-10 w-auto"
+              className="h-7 sm:h-9 md:h-10 w-auto group-hover:opacity-80 transition"
             />
           </Link>
           
+          {/* Mobile menu button */}
           <button 
-            className="sm:hidden p-2"
+            className="md:hidden inline-flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition focus:outline-none"
             onClick={() => setShowMobileMenu(!showMobileMenu)}
+            aria-expanded={showMobileMenu}
+            aria-label="Toggle menu"
           >
             <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {showMobileMenu ? (
@@ -43,10 +50,11 @@ const Navbar = memo(() => {
             </svg>
           </button>
           
-          <div className="hidden sm:flex items-center gap-6">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex md:items-center md:gap-1">
             <Link 
               to="/courses" 
-              className="text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition text-sm sm:text-base"
+              className={navLinkClass}
             >
               Courses
             </Link>
@@ -56,13 +64,13 @@ const Navbar = memo(() => {
                   <>
                     <Link 
                       to="/admin" 
-                      className="text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition text-sm sm:text-base"
+                      className={navLinkClass}
                     >
                       Manage
                     </Link>
                     <Link 
                       to="/admin/tracking" 
-                      className="text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition text-sm sm:text-base"
+                      className={navLinkClass}
                     >
                       Tracking
                     </Link>
@@ -72,13 +80,13 @@ const Navbar = memo(() => {
                   <>
                     <Link 
                       to="/my-courses" 
-                      className="text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition text-sm sm:text-base"
+                      className={navLinkClass}
                     >
                       My Courses
                     </Link>
                     <Link 
                       to="/profile" 
-                      className="text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition text-sm sm:text-base"
+                      className={navLinkClass}
                     >
                       Profile
                     </Link>
@@ -86,8 +94,9 @@ const Navbar = memo(() => {
                 )}
                 <button 
                   onClick={toggleTheme}
-                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                  className="inline-flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition focus:outline-none ml-2"
                   title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                  aria-label="Toggle theme"
                 >
                   {isDark ? (
                     <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
@@ -99,25 +108,27 @@ const Navbar = memo(() => {
                     </svg>
                   )}
                 </button>
-                <div className="relative">
+                <div className="relative ml-2">
                   <button 
                     onClick={() => setShowUserDropdown(!showUserDropdown)}
-                    className="flex items-center gap-2 sm:gap-3"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    aria-expanded={showUserDropdown}
+                    aria-label="User menu"
                   >
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                    <div className="w-7 h-7 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold text-xs">
                       {user.name?.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-gray-700 dark:text-gray-300 font-medium text-sm sm:text-base">{user.name}</span>
+                    <span className="hidden lg:inline text-gray-700 dark:text-gray-300 font-medium">{user.name}</span>
                     <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   
                   {showUserDropdown && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 py-2 z-50">
+                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-2 z-50">
                       <Link 
                         to="/change-password" 
-                        className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                        className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm rounded-lg mx-2 hover:text-violet-600 dark:hover:text-violet-400 transition"
                         onClick={() => setShowUserDropdown(false)}
                       >
                         Change Password
@@ -127,7 +138,7 @@ const Navbar = memo(() => {
                           setShowUserDropdown(false);
                           handleLogout();
                         }} 
-                        className="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm"
+                        className="block w-full text-left px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm rounded-lg mx-2 transition"
                       >
                         Logout
                       </button>
@@ -136,16 +147,16 @@ const Navbar = memo(() => {
                 </div>
               </>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 ml-4">
                 <Link 
                   to="/login" 
-                  className="text-gray-600 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 font-medium transition text-sm sm:text-base"
+                  className={navLinkClass}
                 >
                   Login
                 </Link>
                 <Link 
                   to="/register" 
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg font-medium hover:shadow-lg hover:scale-105 transition-all text-sm sm:text-base"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:shadow-lg hover:scale-105 transition-all duration-200 text-sm"
                 >
                   Sign Up
                 </Link>
@@ -155,12 +166,13 @@ const Navbar = memo(() => {
         </div>
       </div>
       
+      {/* Mobile Navigation Menu */}
       {showMobileMenu && (
-        <div className="sm:hidden bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
-          <div className="px-3 py-2 space-y-2">
+        <div className="md:hidden bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+          <div className="px-4 py-4 space-y-2">
             <Link 
               to="/courses" 
-              className="block py-2 text-gray-600 dark:text-gray-300 hover:text-violet-600"
+              className={mobileNavLinkClass}
               onClick={() => setShowMobileMenu(false)}
             >
               Courses
@@ -171,14 +183,14 @@ const Navbar = memo(() => {
                   <>
                     <Link 
                       to="/admin" 
-                      className="block py-2 text-gray-600 dark:text-gray-300 hover:text-violet-600"
+                      className={mobileNavLinkClass}
                       onClick={() => setShowMobileMenu(false)}
                     >
                       Manage
                     </Link>
                     <Link 
                       to="/admin/tracking" 
-                      className="block py-2 text-gray-600 dark:text-gray-300 hover:text-violet-600"
+                      className={mobileNavLinkClass}
                       onClick={() => setShowMobileMenu(false)}
                     >
                       Tracking
@@ -189,14 +201,14 @@ const Navbar = memo(() => {
                   <>
                     <Link 
                       to="/my-courses" 
-                      className="block py-2 text-gray-600 dark:text-gray-300 hover:text-violet-600"
+                      className={mobileNavLinkClass}
                       onClick={() => setShowMobileMenu(false)}
                     >
                       My Courses
                     </Link>
                     <Link 
                       to="/profile" 
-                      className="block py-2 text-gray-600 dark:text-gray-300 hover:text-violet-600"
+                      className={mobileNavLinkClass}
                       onClick={() => setShowMobileMenu(false)}
                     >
                       Profile
@@ -208,13 +220,14 @@ const Navbar = memo(() => {
                     toggleTheme();
                     setShowMobileMenu(false);
                   }}
-                  className="block py-2 text-gray-600 dark:text-gray-300"
+                  className="block w-full text-left px-4 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-600 dark:hover:text-violet-400 transition duration-200"
                 >
                   {isDark ? 'Light Mode' : 'Dark Mode'}
                 </button>
+                <hr className="my-2 border-gray-100 dark:border-gray-700" />
                 <Link 
                   to="/change-password" 
-                  className="block py-2 text-gray-600 dark:text-gray-300 hover:text-violet-600"
+                  className={mobileNavLinkClass}
                   onClick={() => setShowMobileMenu(false)}
                 >
                   Change Password
@@ -224,7 +237,7 @@ const Navbar = memo(() => {
                     setShowMobileMenu(false);
                     handleLogout();
                   }} 
-                  className="block py-2 text-red-600"
+                  className="block w-full text-left px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition duration-200 font-medium"
                 >
                   Logout
                 </button>
@@ -233,14 +246,14 @@ const Navbar = memo(() => {
               <>
                 <Link 
                   to="/login" 
-                  className="block py-2 text-gray-600 dark:text-gray-300 hover:text-violet-600"
+                  className={mobileNavLinkClass}
                   onClick={() => setShowMobileMenu(false)}
                 >
                   Login
                 </Link>
                 <Link 
                   to="/register" 
-                  className="block py-2 text-violet-600 dark:text-violet-400 font-medium"
+                  className="block w-full text-left px-4 py-3 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-medium hover:shadow-lg transition duration-200"
                   onClick={() => setShowMobileMenu(false)}
                 >
                   Sign Up
@@ -254,4 +267,5 @@ const Navbar = memo(() => {
   );
 });
 
+Navbar.displayName = 'Navbar';
 export default Navbar;
