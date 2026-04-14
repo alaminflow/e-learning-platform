@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Video, Award, ArrowRight, Users, Star, Play } from 'lucide-react';
 
 const Home = memo(() => {
+  const [courses, setCourses] = useState([]);
+
   useEffect(() => {
     fetch('/api/courses?page=1&limit=6')
       .then(r => r.json())
