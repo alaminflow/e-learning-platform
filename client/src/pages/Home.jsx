@@ -76,7 +76,7 @@ const Home = memo(() => {
               </span>
             </h1>
             
-            <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-300 mb-8 max-w-2xl">
+            <p className={`text-lg sm:text-xl mb-8 max-w-2xl ${banner ? 'text-violet-100' : 'text-slate-600 dark:text-slate-300'}`}>
               Unlock your potential with expert-led video courses. Learn at your own pace, anywhere, anytime.
             </p>
             
@@ -107,8 +107,8 @@ const Home = memo(() => {
                   <Users className="w-6 h-6 text-violet-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-white">10K+</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Students</div>
+                  <div className={`text-2xl font-bold ${banner ? 'text-white' : 'text-slate-900 dark:text-white'}`}>10K+</div>
+                  <div className={`text-sm ${banner ? 'text-violet-100' : 'text-slate-500 dark:text-slate-400'}`}>Students</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -116,8 +116,8 @@ const Home = memo(() => {
                   <BookOpen className="w-6 h-6 text-emerald-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-white">50+</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Courses</div>
+                  <div className={`text-2xl font-bold ${banner ? 'text-white' : 'text-slate-900 dark:text-white'}`}>50+</div>
+                  <div className={`text-sm ${banner ? 'text-violet-100' : 'text-slate-500 dark:text-slate-400'}`}>Courses</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -125,8 +125,8 @@ const Home = memo(() => {
                   <Award className="w-6 h-6 text-amber-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-white">5K+</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Certificates</div>
+                  <div className={`text-2xl font-bold ${banner ? 'text-white' : 'text-slate-900 dark:text-white'}`}>5K+</div>
+                  <div className={`text-sm ${banner ? 'text-violet-100' : 'text-slate-500 dark:text-slate-400'}`}>Certificates</div>
                 </div>
               </div>
             </div>

@@ -1,10 +1,10 @@
-import Course from './models/Course.js';
-import User from './models/User.js';
-import Enrollment from './models/Enrollment.js';
-import Attendance from './models/Attendance.js';
-import Result from './models/Result.js';
-import { protect, admin } from './middleware/auth.js';
-import connectDB from './lib/db.js';
+import Course from './_models/Course.js';
+import User from './_models/User.js';
+import Enrollment from './_models/Enrollment.js';
+import Attendance from './_models/Attendance.js';
+import Result from './_models/Result.js';
+import { protect, admin } from './_middleware/auth.js';
+import connectDB from './_lib/db.js';
 
 const sanitizeInput = (input) => {
   if (typeof input === 'string') {

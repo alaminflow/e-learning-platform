@@ -1,8 +1,8 @@
 import { v2 as cloudinary } from 'cloudinary';
 import busboy from 'busboy';
 import { Writable } from 'stream';
-import Settings from './models/Settings.js';
-import connectDB from './lib/db.js';
+import Settings from './_models/Settings.js';
+import connectDB from './_lib/db.js';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

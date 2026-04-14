@@ -1,8 +1,8 @@
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
-import connectDB from '../lib/db.js';
-import { admin, protect } from '../middleware/auth.js';
-import User from '../models/User.js';
+import connectDB from '../_lib/db.js';
+import { admin, protect } from '../_middleware/auth.js';
+import User from '../_models/User.js';
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
