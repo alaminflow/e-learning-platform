@@ -1,5 +1,5 @@
-import connectDB from './lib/db.js';
-import Course from './models/Course.js';
+import connectDB from './_lib/db.js';
+import Course from './_models/Course.js';
 
 export default async function handler(req, res) {
   try {

@@ -1,8 +1,10 @@
-import User from './models/User.js';
-import Course from './models/Course.js';
-import Enrollment from './models/Enrollment.js';
-import { protect, admin } from './middleware/auth.js';
-import connectDB from './lib/db.js';
+import User from './_models/User.js';
+import Course from './_models/Course.js';
+import Enrollment from './_models/Enrollment.js';
+import Attendance from './_models/Attendance.js';
+import Result from './_models/Result.js';
+import { protect, admin } from './_middleware/auth.js';
+import connectDB from './_lib/db.js';
 
 const getPath = (url) => {
   if (!url) return '/';
@@ -14,6 +16,11 @@ const getPath = (url) => {
 };
 
 export default async function handler(req, res) {
+  const contentLength = req.headers['content-length'];
+  if (contentLength && parseInt(contentLength) > 1024 * 1024) {
+    return res.status(413).json({ message: 'Request too large' });
+  }
+  
   try {
     await connectDB();
   } catch (error) {
@@ -71,7 +78,7 @@ export default async function handler(req, res) {
       if (authError) return authError;
 
       const user = await User.findById(req.user._id)
-        .select('-password -verificationOTP -passwordResetOTP');
+        .select('-password -verificationOTP -passwordResetOTP -enrolledCourses');
 
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
@@ -82,6 +89,7 @@ export default async function handler(req, res) {
         status: 'approved'
       }).populate({
         path: 'course',
+        select: 'title description thumbnail createdBy chapters',
         populate: { path: 'createdBy', select: 'name' }
       });
 
@@ -104,9 +112,57 @@ export default async function handler(req, res) {
         };
       }).filter(Boolean);
 
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const attendanceRecords = await Attendance.find({
+        student: user._id,
+        date: { $gte: monthStart, $lt: monthEnd }
+      }).populate('course', 'title');
+
+      const attendanceMap = {};
+      attendanceRecords.forEach(r => {
+        if (!r.course) return; // Prevent crash if course was deleted
+        const key = r.course._id.toString();
+        if (!attendanceMap[key]) {
+          attendanceMap[key] = { courseId: r.course._id, courseName: r.course.title, present: 0, absent: 0, total: 0 };
+        }
+        attendanceMap[key].total++;
+        if (r.status === 'present') attendanceMap[key].present++;
+        if (r.status === 'absent') attendanceMap[key].absent++;
+      });
+
+      const attendanceSummary = Object.values(attendanceMap);
+
+      const results = await Result.find({ student: user._id })
+        .populate('course', 'title')
+        .sort('-createdAt');
+
+      const resultsGrouped = {};
+      results.forEach(r => {
+        if (!r.course) return; // Prevent crash if course was deleted
+        const key = r.course._id.toString();
+        if (!resultsGrouped[key]) {
+          resultsGrouped[key] = { courseId: r.course._id, courseName: r.course.title, exams: [] };
+        }
+        resultsGrouped[key].exams.push({
+          _id: r._id,
+          examTitle: r.examTitle,
+          obtainedMarks: r.obtainedMarks,
+          totalMarks: r.totalMarks,
+          percentage: Math.round((r.obtainedMarks / r.totalMarks) * 100),
+          publishedAt: r.createdAt
+        });
+      });
+
+      const resultsSummary = Object.values(resultsGrouped);
+
       return res.json({
         user,
-        enrolledCourses: coursesWithProgress
+        enrolledCourses: coursesWithProgress,
+        attendanceSummary,
+        resultsSummary
       });
     }
 
@@ -122,16 +178,28 @@ export default async function handler(req, res) {
         .populate('createdBy', 'name')
         .sort('-createdAt');
 
-      const coursesWithStats = await Promise.all(courses.map(async (course) => {
-        const enrollments = await Enrollment.find({
-          course: course._id,
-          status: 'approved'
-        });
+      const courseIds = courses.map(c => c._id);
+      const enrollments = await Enrollment.find({
+        course: { $in: courseIds },
+        status: 'approved'
+      }).populate('student', 'role');
 
-        let totalWatched = 0;
-        enrollments.forEach(e => {
-          totalWatched += e.watchedVideos.length;
-        });
+      const enrollmentByCourse = enrollments.reduce((acc, e) => {
+        if (e.student && e.student.role === 'admin') return acc;
+        const key = e.course.toString();
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(e);
+        return acc;
+      }, {});
+
+      const coursesWithStats = courses.map(course => {
+        const courseEnrollments = enrollmentByCourse[course._id.toString()] || [];
+        const totalWatched = courseEnrollments.reduce((sum, e) => sum + e.watchedVideos.length, 0);
+        
+        const allVideoRatings = courseEnrollments.flatMap(e => e.videoRatings || []);
+        const avgRating = allVideoRatings.length > 0 
+          ? (allVideoRatings.reduce((acc, r) => acc + r.rating, 0) / allVideoRatings.length).toFixed(1)
+          : 0;
 
         return {
           _id: course._id,
@@ -139,13 +207,15 @@ export default async function handler(req, res) {
           description: course.description,
           category: course.category,
           createdBy: course.createdBy,
-          totalStudents: course.enrolledStudents?.length || 0,
+          totalStudents: courseEnrollments.length,
           totalWatchedVideos: totalWatched,
-          avgWatchedPerStudent: course.enrolledStudents?.length > 0 
-            ? Math.round(totalWatched / course.enrolledStudents.length) 
-            : 0
+          avgWatchedPerStudent: courseEnrollments.length > 0 
+            ? Math.round(totalWatched / courseEnrollments.length) 
+            : 0,
+          averageRating: parseFloat(avgRating),
+          totalRatings: allVideoRatings.length
         };
-      }));
+      });
 
       return res.json(coursesWithStats);
     }
@@ -168,12 +238,14 @@ export default async function handler(req, res) {
       const enrollments = await Enrollment.find({
         course: courseId,
         status: 'approved'
-      }).populate('student', 'name email');
+      }).populate('student', 'name email role');
 
       const totalVideos = course.chapters.reduce((acc, ch) => acc + ch.videos.length, 0);
 
       let totalWatchTime = 0;
-      const studentsWithProgress = enrollments.map(enrollment => {
+      const studentsWithProgress = enrollments
+        .filter(e => e.student.role !== 'admin')
+        .map(enrollment => {
         const watchedCount = enrollment.watchedVideos.length;
         totalWatchTime += watchedCount;
         const progress = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
@@ -191,8 +263,8 @@ export default async function handler(req, res) {
         };
       });
 
-      const avgWatchTime = enrollments.length > 0 
-        ? Math.round(totalWatchTime / enrollments.length) 
+      const avgWatchTime = studentsWithProgress.length > 0 
+        ? Math.round(totalWatchTime / studentsWithProgress.length) 
         : 0;
 
       return res.json({
@@ -200,7 +272,7 @@ export default async function handler(req, res) {
           _id: course._id,
           title: course.title,
           totalVideos,
-          totalStudents: enrollments.length
+          totalStudents: studentsWithProgress.length
         },
         avgWatchTime,
         students: studentsWithProgress

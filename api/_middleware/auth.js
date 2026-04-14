@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import User from '../_models/User.js';
 
 export const protect = async (req, res) => {
   let token;
@@ -13,7 +13,8 @@ export const protect = async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tutorsecretkey');
+    const jwtSecret = process.env.JWT_SECRET || 'default-secret-key';
+    const decoded = jwt.verify(token, jwtSecret);
     req.user = await User.findById(decoded.id).select('-password');
     return null;
   } catch (error) {

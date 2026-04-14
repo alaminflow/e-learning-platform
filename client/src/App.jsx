@@ -12,7 +12,6 @@ const Courses = lazy(() => import("./pages/Courses"));
 const CourseDetail = lazy(() => import("./pages/CourseDetail"));
 const VideoPlayer = lazy(() => import("./pages/VideoPlayer"));
 const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
 const RegisterWithOTP = lazy(() => import("./pages/RegisterWithOTP"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
@@ -27,6 +26,10 @@ const Tracking = lazy(() => import("./pages/Tracking"));
 const CourseProgress = lazy(() => import("./pages/CourseProgress"));
 const StudentProgress = lazy(() => import("./pages/StudentProgress"));
 const VideoRatings = lazy(() => import("./pages/VideoRatings"));
+const AdminAttendance = lazy(() => import("./pages/AdminAttendance"));
+const AdminCourseAttendance = lazy(() => import("./pages/AdminCourseAttendance"));
+const AdminResults = lazy(() => import("./pages/AdminResults"));
+const AdminCourseResults = lazy(() => import("./pages/AdminCourseResults"));
 
 const Loading = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -52,8 +55,7 @@ function App() {
                   element={<VideoPlayer />}
                 />
                 <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/register-otp" element={<RegisterWithOTP />} />
+                <Route path="/register" element={<RegisterWithOTP />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/change-password" element={<ChangePassword />} />
                 <Route path="/my-courses" element={<MyCourses />} />
@@ -88,6 +90,16 @@ function App() {
                 <Route
                   path="/admin/tracking/:courseId/ratings"
                   element={<VideoRatings />}
+                />
+                <Route path="/admin/attendance" element={<AdminAttendance />} />
+                <Route
+                  path="/admin/attendance/:courseId"
+                  element={<AdminCourseAttendance />}
+                />
+                <Route path="/admin/results" element={<AdminResults />} />
+                <Route
+                  path="/admin/results/:courseId"
+                  element={<AdminCourseResults />}
                 />
               </Routes>
             </Suspense>

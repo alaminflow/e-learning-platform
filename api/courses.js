@@ -1,8 +1,10 @@
-import Course from './models/Course.js';
-import User from './models/User.js';
-import Enrollment from './models/Enrollment.js';
-import { protect, admin } from './middleware/auth.js';
-import connectDB from './lib/db.js';
+import Course from './_models/Course.js';
+import User from './_models/User.js';
+import Enrollment from './_models/Enrollment.js';
+import Attendance from './_models/Attendance.js';
+import Result from './_models/Result.js';
+import { protect, admin } from './_middleware/auth.js';
+import connectDB from './_lib/db.js';
 
 const sanitizeInput = (input) => {
   if (typeof input === 'string') {
@@ -43,7 +45,11 @@ export default async function handler(req, res) {
   
   const enrollMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/enroll$/);
   const enrollmentStatusMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/enrollment-status$/);
-  const courseIdMatch = !isKnownRoute && !enrollMatch && !enrollmentStatusMatch && path && path.match(/^\/([^/]+)$/);
+  const attendanceMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/attendance$/);
+  const attendanceSummaryMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/attendance\/summary$/);
+  const resultsMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/results$/);
+  const resultIdMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/results\/([^/]+)$/);
+  const courseIdMatch = !isKnownRoute && !enrollMatch && !enrollmentStatusMatch && !attendanceMatch && !attendanceSummaryMatch && !resultsMatch && !resultIdMatch && path && path.match(/^\/([^/]+)$/);
   const studentsMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/students$/);
   const studentIdMatch = !isKnownRoute && path && path.match(/^\/([^/]+)\/students\/([^/]+)$/);
 
@@ -66,6 +72,7 @@ export default async function handler(req, res) {
     }
 
     const courses = await Course.find(query)
+      .select('title description thumbnail price category createdBy createdAt')
       .populate('createdBy', 'name')
       .skip(skip)
       .limit(parseInt(limit))
@@ -98,6 +105,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'Title and description are required' });
     }
 
+    if (title.length > 200 || description.length > 5000) {
+      return res.status(400).json({ message: 'Title must be under 200 chars and description under 5000 chars' });
+    }
+
     const validCategory = ['default', 'latest', 'popular'].includes(category) ? category : 'default';
     
     const course = await Course.create({
@@ -128,6 +139,7 @@ export default async function handler(req, res) {
       status: 'approved' 
     }).populate({
       path: 'course',
+      select: 'title description thumbnail createdBy',
       populate: { path: 'createdBy', select: 'name' }
     });
     
@@ -157,6 +169,19 @@ export default async function handler(req, res) {
     
     const adminError = admin(req, res);
     if (adminError) return adminError;
+
+    // --- DB CLEANUP ROUTINE: Remove Admins from student lists
+    try {
+      const admins = await User.find({ role: 'admin' }).select('_id');
+      const adminIds = admins.map(a => a._id);
+      if (adminIds.length > 0) {
+        await Course.updateMany({}, { $pull: { enrolledStudents: { $in: adminIds } } });
+        await Enrollment.deleteMany({ student: { $in: adminIds } });
+      }
+    } catch (err) {
+      console.error('Failed to clean up historical admin records:', err);
+    }
+    // --- END CLEANUP
     
     const { page = 1, limit = 15, search = '' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -177,9 +202,22 @@ export default async function handler(req, res) {
 
     const total = await Course.countDocuments(query);
     
+    const courseIds = courses.map(c => c._id);
+    const enrollments = await Enrollment.find({
+      course: { $in: courseIds },
+      status: 'approved'
+    }).populate('student', 'role');
+    
+    const enrollmentCountByCourse = {};
+    enrollments.forEach(e => {
+      if (e.student && e.student.role === 'admin') return;
+      const key = e.course.toString();
+      enrollmentCountByCourse[key] = (enrollmentCountByCourse[key] || 0) + 1;
+    });
+
     const coursesWithEnrollments = courses.map(course => ({
       ...course.toObject(),
-      enrolledStudents: course.enrolledStudents ? course.enrolledStudents.length : 0
+      enrolledStudents: enrollmentCountByCourse[course._id.toString()] || 0
     }));
     
     return res.json({
@@ -244,10 +282,6 @@ export default async function handler(req, res) {
         course: courseId,
         status: 'approved'
       });
-      if (course && !course.enrolledStudents.includes(req.user._id)) {
-        course.enrolledStudents.push(req.user._id);
-        await course.save();
-      }
       return res.json({ status: 'approved' });
     }
     
@@ -286,10 +320,6 @@ export default async function handler(req, res) {
         if (user.role === 'admin') {
           existingEnrollment.status = 'approved';
           await existingEnrollment.save();
-          if (!course.enrolledStudents.includes(req.user._id)) {
-            course.enrolledStudents.push(req.user._id);
-            await course.save();
-          }
           return res.json({ message: 'Enrolled successfully' });
         }
         return res.status(400).json({ message: 'Enrollment request already pending' });
@@ -297,10 +327,6 @@ export default async function handler(req, res) {
         if (user.role === 'admin') {
           existingEnrollment.status = 'approved';
           await existingEnrollment.save();
-          if (!course.enrolledStudents.includes(req.user._id)) {
-            course.enrolledStudents.push(req.user._id);
-            await course.save();
-          }
           return res.json({ message: 'Enrolled successfully' });
         }
         existingEnrollment.status = 'pending';
@@ -315,11 +341,6 @@ export default async function handler(req, res) {
         course: courseId,
         status: 'approved'
       });
-
-      if (!course.enrolledStudents.includes(req.user._id)) {
-        course.enrolledStudents.push(req.user._id);
-        await course.save();
-      }
       
       return res.json({ message: 'Enrolled successfully' });
     }
@@ -329,11 +350,6 @@ export default async function handler(req, res) {
       course: courseId,
       status: 'pending'
     });
-
-    if (!course.enrolledStudents.includes(req.user._id)) {
-      course.enrolledStudents.push(req.user._id);
-      await course.save();
-    }
     
     return res.json({ message: 'Enrollment request sent. Waiting for admin approval.' });
   }
@@ -347,13 +363,25 @@ export default async function handler(req, res) {
     const adminError = admin(req, res);
     if (adminError) return adminError;
     
-    const course = await Course.findById(courseId).populate('enrolledStudents', 'name email createdAt');
+    const enrollments = await Enrollment.find({ 
+      course: courseId, 
+      status: 'approved' 
+    }).populate('student', 'name email createdAt');
     
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+    if (!enrollments.length) {
+      return res.json([]);
     }
     
-    return res.json(course.enrolledStudents || []);
+    const students = enrollments
+      .filter(e => e.student.role !== 'admin')
+      .map(e => ({
+      _id: e.student._id,
+      name: e.student.name,
+      email: e.student.email,
+      createdAt: e.student.createdAt
+    }));
+    
+    return res.json(students);
   }
 
   // POST /api/courses/:id/students
@@ -375,6 +403,25 @@ export default async function handler(req, res) {
     const student = await User.findById(studentId);
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
+    }
+    
+    const existingEnrollment = await Enrollment.findOne({
+      student: studentId,
+      course: courseId
+    });
+    
+    if (existingEnrollment) {
+      if (existingEnrollment.status === 'approved') {
+        return res.status(400).json({ message: 'Student already enrolled' });
+      }
+      existingEnrollment.status = 'approved';
+      await existingEnrollment.save();
+    } else {
+      await Enrollment.create({
+        student: studentId,
+        course: courseId,
+        status: 'approved'
+      });
     }
     
     if (!course.enrolledStudents.includes(studentId)) {
@@ -421,7 +468,14 @@ export default async function handler(req, res) {
       if (!course) {
         return res.status(404).json({ message: 'Course not found' });
       }
-      
+       
+      if (title && title.length > 200) {
+        return res.status(400).json({ message: 'Title must be under 200 characters' });
+      }
+      if (description && description.length > 5000) {
+        return res.status(400).json({ message: 'Description must be under 5000 characters' });
+      }
+       
       course.title = title || course.title;
       course.description = description || course.description;
       course.thumbnail = thumbnail || course.thumbnail;
@@ -449,6 +503,7 @@ export default async function handler(req, res) {
         return res.status(404).json({ message: 'Course not found' });
       }
       
+      await Enrollment.deleteMany({ course: courseId });
       await course.deleteOne();
       return res.json({ message: 'Course deleted' });
     }
@@ -474,6 +529,12 @@ export default async function handler(req, res) {
     if (enrollment) {
       enrollment.status = 'rejected';
       await enrollment.save();
+    }
+    
+    const course = await Course.findById(courseId);
+    if (course) {
+      course.enrolledStudents.pull(studentId);
+      await course.save();
     }
     
     const student = await User.findById(studentId);
@@ -774,14 +835,30 @@ export default async function handler(req, res) {
     
     if (action === 'approve') {
       const student = await User.findById(enrollment.student);
-      if (student && !student.enrolledCourses.includes(enrollment.course)) {
-        student.enrolledCourses.push(enrollment.course);
+      if (student && student.role !== 'admin') {
+        if (!student.enrolledCourses.includes(enrollment.course)) {
+          student.enrolledCourses.push(enrollment.course);
+          await student.save();
+        }
+
+        const course = await Course.findById(enrollment.course);
+        if (course && !course.enrolledStudents.includes(enrollment.student)) {
+          course.enrolledStudents.push(enrollment.student);
+          await course.save();
+        }
+      }
+    }
+    
+    if (action === 'reject') {
+      const student = await User.findById(enrollment.student);
+      if (student) {
+        student.enrolledCourses.pull(enrollment.course);
         await student.save();
       }
-
+      
       const course = await Course.findById(enrollment.course);
-      if (course && !course.enrolledStudents.includes(enrollment.student)) {
-        course.enrolledStudents.push(enrollment.student);
+      if (course) {
+        course.enrolledStudents.pull(enrollment.student);
         await course.save();
       }
     }
@@ -847,10 +924,6 @@ export default async function handler(req, res) {
         course: courseId,
         status: 'approved'
       });
-      if (!course.enrolledStudents.includes(req.user._id)) {
-        course.enrolledStudents.push(req.user._id);
-        await course.save();
-      }
     }
 
     if (!enrollment) {
@@ -1006,6 +1079,279 @@ export default async function handler(req, res) {
     });
 
     return res.json(Object.values(videoStats));
+  }
+
+  // =============================================
+  // ATTENDANCE ENDPOINTS
+  // =============================================
+
+  // GET /api/courses/:id/attendance?date=YYYY-MM-DD
+  if (method === 'GET' && attendanceMatch) {
+    const courseId = attendanceMatch[1];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ message: 'Date query parameter is required (YYYY-MM-DD)' });
+    }
+
+    const targetDate = new Date(date + 'T00:00:00.000Z');
+
+    const enrollments = await Enrollment.find({
+      course: courseId,
+      status: 'approved'
+    }).populate('student', 'name email role');
+
+    const students = enrollments
+      .filter(e => e.student && e.student.role !== 'admin')
+      .map(e => ({
+        _id: e.student._id,
+        name: e.student.name,
+        email: e.student.email
+      }));
+
+    const records = await Attendance.find({
+      course: courseId,
+      date: targetDate
+    });
+
+    const recordMap = {};
+    records.forEach(r => {
+      recordMap[r.student.toString()] = r.status;
+    });
+
+    const result = students.map(s => ({
+      ...s,
+      status: recordMap[s._id.toString()] || 'unmarked'
+    }));
+
+    return res.json({ date: date, students: result });
+  }
+
+  // POST /api/courses/:id/attendance
+  if (method === 'POST' && attendanceMatch) {
+    const courseId = attendanceMatch[1];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+
+    const { date, records } = req.body;
+    if (!date || !records || !Array.isArray(records)) {
+      return res.status(400).json({ message: 'Date and records array are required' });
+    }
+
+    const targetDate = new Date(date + 'T00:00:00.000Z');
+
+    const bulkOps = records.map(record => ({
+      updateOne: {
+        filter: {
+          course: courseId,
+          student: record.studentId,
+          date: targetDate
+        },
+        update: {
+          $set: {
+            status: record.status,
+            markedBy: req.user._id
+          }
+        },
+        upsert: true
+      }
+    }));
+
+    await Attendance.bulkWrite(bulkOps);
+    return res.json({ message: 'Attendance saved successfully', count: records.length });
+  }
+
+  // GET /api/courses/:id/attendance/summary?month=YYYY-MM
+  if (method === 'GET' && attendanceSummaryMatch) {
+    const courseId = attendanceSummaryMatch[1];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+
+    const { month } = req.query;
+    if (!month) {
+      return res.status(400).json({ message: 'Month query parameter is required (YYYY-MM)' });
+    }
+
+    const startDate = new Date(month + '-01T00:00:00.000Z');
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + 1);
+
+    const enrollments = await Enrollment.find({
+      course: courseId,
+      status: 'approved'
+    }).populate('student', 'name email role');
+
+    const students = enrollments
+      .filter(e => e.student && e.student.role !== 'admin')
+      .map(e => ({
+        _id: e.student._id,
+        name: e.student.name,
+        email: e.student.email
+      }));
+
+    const records = await Attendance.find({
+      course: courseId,
+      date: { $gte: startDate, $lt: endDate }
+    });
+
+    const totalClassDays = [...new Set(records.map(r => r.date.toISOString().split('T')[0]))].length;
+
+    const summaryMap = {};
+    records.forEach(r => {
+      const key = r.student.toString();
+      if (!summaryMap[key]) {
+        summaryMap[key] = { present: 0, absent: 0 };
+      }
+      if (r.status === 'present') summaryMap[key].present++;
+      if (r.status === 'absent') summaryMap[key].absent++;
+    });
+
+    const summary = students.map(s => ({
+      ...s,
+      present: summaryMap[s._id.toString()]?.present || 0,
+      absent: summaryMap[s._id.toString()]?.absent || 0,
+      totalClasses: totalClassDays
+    }));
+
+    return res.json({ month, totalClasses: totalClassDays, students: summary });
+  }
+
+  // =============================================
+  // RESULTS ENDPOINTS
+  // =============================================
+
+  // GET /api/courses/:id/results?studentId=xxx (optional filter)
+  if (method === 'GET' && resultsMatch) {
+    const courseId = resultsMatch[1];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+
+    const query = { course: courseId };
+    if (req.query.studentId) {
+      query.student = req.query.studentId;
+    }
+
+    const results = await Result.find(query)
+      .populate('student', 'name email')
+      .populate('publishedBy', 'name')
+      .sort('-createdAt');
+
+    return res.json(results);
+  }
+
+  // POST /api/courses/:id/results
+  if (method === 'POST' && resultsMatch) {
+    const courseId = resultsMatch[1];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+
+    const { studentId, examTitle, obtainedMarks, totalMarks } = req.body;
+
+    if (!studentId || !examTitle || obtainedMarks === undefined || !totalMarks) {
+      return res.status(400).json({ message: 'studentId, examTitle, obtainedMarks, and totalMarks are required' });
+    }
+
+    if (obtainedMarks < 0 || totalMarks < 1 || obtainedMarks > totalMarks) {
+      return res.status(400).json({ message: 'Invalid marks: obtainedMarks must be 0-totalMarks, totalMarks must be >= 1' });
+    }
+
+    const enrollment = await Enrollment.findOne({
+      student: studentId,
+      course: courseId,
+      status: 'approved'
+    });
+
+    if (!enrollment) {
+      return res.status(400).json({ message: 'Student is not enrolled in this course' });
+    }
+
+    const existing = await Result.findOne({
+      course: courseId,
+      student: studentId,
+      examTitle: examTitle.trim()
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: 'Result already exists for this exam and student. Use PUT to update.' });
+    }
+
+    const result = await Result.create({
+      course: courseId,
+      student: studentId,
+      examTitle: examTitle.trim(),
+      obtainedMarks,
+      totalMarks,
+      publishedBy: req.user._id
+    });
+
+    const populated = await Result.findById(result._id)
+      .populate('student', 'name email')
+      .populate('publishedBy', 'name');
+
+    return res.status(201).json(populated);
+  }
+
+  // PUT /api/courses/:id/results/:resultId
+  if (method === 'PUT' && resultIdMatch) {
+    const courseId = resultIdMatch[1];
+    const resultId = resultIdMatch[2];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+
+    const result = await Result.findOne({ _id: resultId, course: courseId });
+    if (!result) {
+      return res.status(404).json({ message: 'Result not found' });
+    }
+
+    const { examTitle, obtainedMarks, totalMarks } = req.body;
+
+    if (examTitle) result.examTitle = examTitle.trim();
+    if (obtainedMarks !== undefined) result.obtainedMarks = obtainedMarks;
+    if (totalMarks !== undefined) result.totalMarks = totalMarks;
+
+    if (result.obtainedMarks < 0 || result.totalMarks < 1 || result.obtainedMarks > result.totalMarks) {
+      return res.status(400).json({ message: 'Invalid marks' });
+    }
+
+    await result.save();
+
+    const populated = await Result.findById(result._id)
+      .populate('student', 'name email')
+      .populate('publishedBy', 'name');
+
+    return res.json(populated);
+  }
+
+  // DELETE /api/courses/:id/results/:resultId
+  if (method === 'DELETE' && resultIdMatch) {
+    const courseId = resultIdMatch[1];
+    const resultId = resultIdMatch[2];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+
+    const result = await Result.findOne({ _id: resultId, course: courseId });
+    if (!result) {
+      return res.status(404).json({ message: 'Result not found' });
+    }
+
+    await result.deleteOne();
+    return res.json({ message: 'Result deleted' });
   }
 
   return res.status(404).json({ message: 'Endpoint not found: ' + path });
