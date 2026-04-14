@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import busboy from 'busboy';
 import { Writable } from 'stream';
+import sharp from 'sharp';
 import Settings from './_models/Settings.js';
 import connectDB from './_lib/db.js';
 
@@ -67,21 +68,21 @@ export default async function handler(req, res) {
         }
 
         try {
+          const optimizedBuffer = await sharp(fileBuffer)
+            .resize(1920, 600, { fit: 'cover' })
+            .webp({ quality: 90, effort: 6 })
+            .toBuffer();
+
           const result = await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream({
               folder: 'tutor/banner',
-              resource_type: 'image',
-              width: 1920,
-              height: 600,
-              crop: 'fill',
-              quality: 'auto',
-              fetch_format: 'auto'
+              resource_type: 'image'
             }, (error, result) => {
               if (error) reject(error);
               else resolve(result);
             });
             
-            uploadStream.end(fileBuffer);
+            uploadStream.end(optimizedBuffer);
           });
 
           await Settings.findOneAndUpdate(
@@ -153,6 +154,11 @@ export default async function handler(req, res) {
         }
 
         try {
+          const optimizedBuffer = await sharp(fileBuffer)
+            .resize(800, 600, { fit: 'cover', withoutEnlargement: true })
+            .webp({ quality: 90, effort: 6 })
+            .toBuffer();
+
           const result = await new Promise((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream({
               folder: 'tutor',
@@ -162,7 +168,7 @@ export default async function handler(req, res) {
               else resolve(result);
             });
             
-            uploadStream.end(fileBuffer);
+            uploadStream.end(optimizedBuffer);
           });
 
           resolve(res.json({

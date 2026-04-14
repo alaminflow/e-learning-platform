@@ -47,7 +47,7 @@ const Navbar = memo(() => {
           </button>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex md:items-center md:gap-2">
+          <div className="hidden md:flex md:items-center md:gap-6">
             <Link to="/courses" className={navLinkClass}>
               Courses
             </Link>

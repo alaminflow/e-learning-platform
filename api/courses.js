@@ -169,6 +169,19 @@ export default async function handler(req, res) {
     
     const adminError = admin(req, res);
     if (adminError) return adminError;
+
+    // --- DB CLEANUP ROUTINE: Remove Admins from student lists
+    try {
+      const admins = await User.find({ role: 'admin' }).select('_id');
+      const adminIds = admins.map(a => a._id);
+      if (adminIds.length > 0) {
+        await Course.updateMany({}, { $pull: { enrolledStudents: { $in: adminIds } } });
+        await Enrollment.deleteMany({ student: { $in: adminIds } });
+      }
+    } catch (err) {
+      console.error('Failed to clean up historical admin records:', err);
+    }
+    // --- END CLEANUP
     
     const { page = 1, limit = 15, search = '' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -269,10 +282,6 @@ export default async function handler(req, res) {
         course: courseId,
         status: 'approved'
       });
-      if (course && !course.enrolledStudents.includes(req.user._id)) {
-        course.enrolledStudents.push(req.user._id);
-        await course.save();
-      }
       return res.json({ status: 'approved' });
     }
     
@@ -311,10 +320,6 @@ export default async function handler(req, res) {
         if (user.role === 'admin') {
           existingEnrollment.status = 'approved';
           await existingEnrollment.save();
-          if (!course.enrolledStudents.includes(req.user._id)) {
-            course.enrolledStudents.push(req.user._id);
-            await course.save();
-          }
           return res.json({ message: 'Enrolled successfully' });
         }
         return res.status(400).json({ message: 'Enrollment request already pending' });
@@ -322,10 +327,6 @@ export default async function handler(req, res) {
         if (user.role === 'admin') {
           existingEnrollment.status = 'approved';
           await existingEnrollment.save();
-          if (!course.enrolledStudents.includes(req.user._id)) {
-            course.enrolledStudents.push(req.user._id);
-            await course.save();
-          }
           return res.json({ message: 'Enrolled successfully' });
         }
         existingEnrollment.status = 'pending';
@@ -340,11 +341,6 @@ export default async function handler(req, res) {
         course: courseId,
         status: 'approved'
       });
-
-      if (!course.enrolledStudents.includes(req.user._id)) {
-        course.enrolledStudents.push(req.user._id);
-        await course.save();
-      }
       
       return res.json({ message: 'Enrolled successfully' });
     }
@@ -928,10 +924,6 @@ export default async function handler(req, res) {
         course: courseId,
         status: 'approved'
       });
-      if (!course.enrolledStudents.includes(req.user._id)) {
-        course.enrolledStudents.push(req.user._id);
-        await course.save();
-      }
     }
 
     if (!enrollment) {

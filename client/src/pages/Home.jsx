@@ -62,7 +62,7 @@ const Home = memo(() => {
           </div>
         )}
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className={`max-w-3xl ${banner ? 'text-white' : ''}`}>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-100 text-violet-700 text-sm font-medium mb-6">
               <Star className="w-4 h-4 fill-violet-500" />
