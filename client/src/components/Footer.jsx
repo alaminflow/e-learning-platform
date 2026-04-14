@@ -69,12 +69,12 @@ const Footer = memo(() => (
             </li>
             <li>
               <a
-                href="https://github.com/developerasf"
+                href="https://alaminflow.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-violet-400 transition duration-200"
               >
-                GitHub
+                Find Developer
               </a>
             </li>
           </ul>
@@ -85,17 +85,17 @@ const Footer = memo(() => (
       <div className="border-t border-gray-800 dark:border-gray-700 pt-6 sm:pt-8">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
           <p className="text-xs sm:text-sm text-gray-400">
-            &copy; 2024 Bipul's Classroom. All rights reserved.
+            &copy; 2026 Bipul's Classroom. All rights reserved.
           </p>
           <p className="text-xs sm:text-sm text-gray-400">
             Developed by{" "}
             <a
-              href="https://developerasf.github.io"
+              href="https://alaminflow.com"
               target="_blank"
               rel="noopener noreferrer"
               className="text-violet-400 hover:text-violet-300 font-medium transition duration-200"
             >
-              @Developerasf
+              @Alaminflow
             </a>
           </p>
         </div>
