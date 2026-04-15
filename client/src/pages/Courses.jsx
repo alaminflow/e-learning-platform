@@ -1,6 +1,7 @@
 import { BookOpen, ChevronLeft, ChevronRight, Filter, Play, Search, X } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { fetchWithCache, clearCache } from '../lib/apiCache';
 
 const Courses = memo(() => {
   const [courses, setCourses] = useState([]);
@@ -19,7 +20,7 @@ const Courses = memo(() => {
       .catch(console.error);
   }, []);
 
-  const fetchCourses = async (pageNum = 1, searchTerm = search, cat = category) => {
+  const fetchCourses = async (pageNum = 1, searchTerm = search, cat = category, useCache = false) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -28,8 +29,8 @@ const Courses = memo(() => {
       if (searchTerm) params.append('search', searchTerm);
       if (cat) params.append('category', cat);
 
-      const res = await fetch(`/api/courses?${params}`);
-      const data = await res.json();
+      const url = `/api/courses?${params}`;
+      const data = useCache ? await fetchWithCache(url) : await fetch(url).then(r => r.json());
 
       if (data.courses) {
         setCourses(data.courses);
@@ -45,26 +46,29 @@ const Courses = memo(() => {
   };
 
   useEffect(() => {
-    fetchCourses(page);
+    fetchCourses(page, '', '', page === 1);
   }, [page]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    fetchCourses(1, search, category);
+    clearCache();
+    fetchCourses(1, search, category, false);
   };
 
   const handleCategoryChange = (e) => {
     setCategory(e.target.value);
     setPage(1);
-    fetchCourses(1, search, e.target.value);
+    clearCache();
+    fetchCourses(1, search, e.target.value, false);
   };
 
   const clearFilters = () => {
     setSearch('');
     setCategory('');
     setPage(1);
-    fetchCourses(1, '', '');
+    clearCache();
+    fetchCourses(1, '', '', false);
   };
 
   return (

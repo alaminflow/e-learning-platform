@@ -1,13 +1,13 @@
 import { ArrowRight, Award, BookOpen, Play, Star, Video } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { fetchWithCache } from "../lib/apiCache";
 
 const Home = memo(() => {
   const [courses, setCourses] = useState([]);
 
   useEffect(() => {
-    fetch("/api/courses?page=1&limit=6")
-      .then((r) => r.json())
+    fetchWithCache("/api/courses?page=1&limit=6")
       .then((coursesData) => {
         const courses = coursesData.courses || coursesData;
         setCourses(courses.slice(0, 6));

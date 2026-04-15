@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import Toast from "./components/Toast";
@@ -32,9 +32,39 @@ const AdminResults = lazy(() => import("./pages/AdminResults"));
 const AdminCourseResults = lazy(() => import("./pages/AdminCourseResults"));
 const AdminPayments = lazy(() => import("./pages/AdminPayments"));
 
+const RoutePreloader = () => {
+  const location = useLocation();
+  const [preloaded, setPreloaded] = useState(false);
+
+  useEffect(() => {
+    if (preloaded) return;
+    
+    const paths = location.pathname.split('/').filter(Boolean);
+    const nextPaths = [
+      '/courses',
+      '/my-courses',
+      '/admin',
+      '/login',
+      '/register'
+    ];
+    
+    const preloadPriority = ['/courses', '/my-courses'];
+    const shouldPreload = preloadPriority.some(p => location.pathname.startsWith(p));
+    
+    if (shouldPreload && 'requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        CourseDetail.preload();
+        setPreloaded(true);
+      });
+    }
+  }, [location.pathname]);
+
+  return null;
+};
+
 const Loading = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-    <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-500 border-t-transparent"></div>
+    <div className="w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
 
@@ -46,6 +76,7 @@ function App() {
         <Router>
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
             <Navbar />
+            <RoutePreloader />
             <Suspense fallback={<Loading />}>
               <Routes>
                 <Route path="/" element={<Home />} />
