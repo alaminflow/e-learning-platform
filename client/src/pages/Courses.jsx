@@ -1,6 +1,6 @@
-import { useState, useEffect, memo } from 'react';
+import { BookOpen, ChevronLeft, ChevronRight, Filter, Play, Search, X } from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, BookOpen, ChevronLeft, ChevronRight, Filter, Play, X } from 'lucide-react';
 
 const Courses = memo(() => {
   const [courses, setCourses] = useState([]);
@@ -10,6 +10,14 @@ const Courses = memo(() => {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [banner, setBanner] = useState('');
+
+  useEffect(() => {
+    fetch('/api/upload/banner')
+      .then(r => r.json())
+      .then(data => data.url && setBanner(data.url))
+      .catch(console.error);
+  }, []);
 
   const fetchCourses = async (pageNum = 1, searchTerm = search, cat = category) => {
     setLoading(true);
@@ -22,7 +30,7 @@ const Courses = memo(() => {
 
       const res = await fetch(`/api/courses?${params}`);
       const data = await res.json();
-      
+
       if (data.courses) {
         setCourses(data.courses);
         setPagination(data.pagination);
@@ -131,7 +139,7 @@ const Courses = memo(() => {
                   </button>
                 </span>
               )}
-              <button 
+              <button
                 type="button"
                 onClick={clearFilters}
                 className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition cursor-pointer"
@@ -141,6 +149,13 @@ const Courses = memo(() => {
             </div>
           )}
         </form>
+
+        {/* Banner Section */}
+        {/*banner && (
+          <div className="mb-12 w-full aspect-video sm:aspect-[16/9] rounded-2xl overflow-hidden shadow-xl border border-slate-100 dark:border-slate-800">
+            <img src={banner} alt="Banner" className="w-full h-full object-cover" />
+          </div>
+        ) */}
 
         {/* Results */}
         {loading ? (
@@ -157,7 +172,7 @@ const Courses = memo(() => {
             </div>
             <p className="text-slate-600 dark:text-slate-400 text-xl mb-2">No courses found.</p>
             <p className="text-slate-500 dark:text-slate-500 text-base mb-6">Try adjusting your search or filter.</p>
-            <button 
+            <button
               onClick={clearFilters}
               className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition cursor-pointer"
             >
@@ -186,9 +201,9 @@ const Courses = memo(() => {
                 >
                   <div className="h-52 bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
                     {course.thumbnail ? (
-                      <img 
-                        src={course.thumbnail} 
-                        alt={course.title} 
+                      <img
+                        src={course.thumbnail}
+                        alt={course.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                         loading="lazy"
                       />
@@ -215,13 +230,13 @@ const Courses = memo(() => {
                     <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 line-clamp-2">
                       {course.description}
                     </p>
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700 mb-4">
                       <span className="text-sm text-slate-500 dark:text-slate-500">
                         By <span className="font-medium text-slate-700 dark:text-slate-300">{course.createdBy?.name || 'Unknown'}</span>
                       </span>
-                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold text-sm group-hover:translate-x-1 transition">
-                        View Course
-                      </span>
+                    </div>
+                    <div className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold transition-all duration-200 hover:shadow-md cursor-pointer">
+                      Enroll Now
                     </div>
                   </div>
                 </Link>
@@ -239,7 +254,7 @@ const Courses = memo(() => {
                   <ChevronLeft className="w-5 h-5" />
                   Previous
                 </button>
-                
+
                 <div className="flex items-center gap-2">
                   {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
                     let pageNum;
