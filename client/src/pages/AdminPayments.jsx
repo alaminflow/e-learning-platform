@@ -46,7 +46,7 @@ const AdminPayments = memo(() => {
   };
 
   const togglePayment = async (studentId, currentStatus) => {
-    const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+    const newStatus = currentStatus === 'paid' ? 'due' : 'paid';
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/payments', {
@@ -175,55 +175,40 @@ const AdminPayments = memo(() => {
               <p className="text-slate-600 dark:text-slate-400 text-lg">No students found.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-100 dark:border-slate-700">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-300">Student Name</th>
-                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-300">Email</th>
-                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-300">Paid Date</th>
-                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-300">Status</th>
-                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-300 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {students.map(student => (
-                    <tr key={student._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                        {student.name}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                        {student.email}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                        {student.paymentStatus === 'paid' && student.paidDate ? new Date(student.paidDate).toLocaleDateString() : '-'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                          student.paymentStatus === 'paid' 
-                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' 
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                        }`}>
-                          {student.paymentStatus === 'paid' ? <CheckCircle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
-                          {student.paymentStatus === 'paid' ? 'PAID' : 'UNPAID'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => togglePayment(student._id, student.paymentStatus)}
-                          className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
-                            student.paymentStatus === 'paid'
-                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300'
-                              : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
-                          }`}
-                        >
-                          Mark as {student.paymentStatus === 'paid' ? 'Unpaid' : 'Paid'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="divide-y divide-slate-100 dark:divide-slate-700">
+              {students.map(student => (
+                <div key={student._id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-900 dark:text-white truncate">{student.name}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{student.email}</p>
+                    </div>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold flex-shrink-0 ml-2 ${
+                      student.paymentStatus === 'paid' 
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' 
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                    }`}>
+                      {student.paymentStatus === 'paid' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                      {student.paymentStatus === 'paid' ? 'PAID' : 'DUE'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {student.paymentStatus === 'paid' && student.paidDate ? `Paid: ${new Date(student.paidDate).toLocaleDateString()}` : 'Not paid'}
+                    </p>
+                    <button
+                      onClick={() => togglePayment(student._id, student.paymentStatus)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                        student.paymentStatus === 'paid'
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300'
+                          : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                      }`}
+                    >
+                      {student.paymentStatus === 'paid' ? 'Due' : 'Paid'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

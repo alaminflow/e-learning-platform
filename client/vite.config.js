@@ -22,5 +22,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'react-toastify', 'lucide-react']
-  }
+  },
+  publicDir: 'public'
 })

@@ -47,13 +47,13 @@ export default async function handler(req, res) {
         ];
       }
 
-      const students = await User.find(query).select('name email isVerified createdAt').sort('-createdAt');
+      const students = await User.find(query).select('name email isVerified createdAt').sort('-createdAt').lean();
       
       // Query payments for the given month/year
       const payments = await Payment.find({ 
         month: parseInt(month), 
         year: parseInt(year) 
-      });
+      }).lean();
 
       const paymentMap = {};
       payments.forEach(p => {
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
           email: student.email,
           isVerified: student.isVerified,
           joinedAt: student.createdAt,
-          paymentStatus: payment ? payment.status : 'unpaid',
+          paymentStatus: payment ? payment.status : 'due',
           paidDate: payment ? payment.paidDate : null
         };
       });
@@ -92,10 +92,10 @@ export default async function handler(req, res) {
         return res.status(400).json({ message: 'Missing required fields' });
       }
 
-      if (status === 'unpaid') {
+      if (status === 'due') {
         // Remove the payment record
         await Payment.findOneAndDelete({ student: studentId, month, year });
-        return res.json({ message: 'Payment status updated to unpaid' });
+        return res.json({ message: 'Payment status updated to due' });
       } else if (status === 'paid') {
         // Upsert the payment record
         const payment = await Payment.findOneAndUpdate(

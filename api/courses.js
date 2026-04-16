@@ -76,7 +76,8 @@ export default async function handler(req, res) {
       .populate('createdBy', 'name')
       .skip(skip)
       .limit(parseInt(limit))
-      .sort(category === 'latest' ? '-createdAt' : '-createdAt');
+      .sort(category === 'latest' ? '-createdAt' : '-createdAt')
+      .lean();
 
     const total = await Course.countDocuments(query);
 
@@ -141,7 +142,7 @@ export default async function handler(req, res) {
       path: 'course',
       select: 'title description thumbnail createdBy',
       populate: { path: 'createdBy', select: 'name' }
-    });
+    }).lean();
     
     if (enrollments.length > 0) {
       courses = enrollments.map(e => e.course).filter(c => c);
@@ -198,7 +199,8 @@ export default async function handler(req, res) {
       .populate('createdBy', 'name')
       .skip(skip)
       .limit(parseInt(limit))
-      .sort('-createdAt');
+      .sort('-createdAt')
+      .lean();
 
     const total = await Course.countDocuments(query);
     
@@ -216,7 +218,7 @@ export default async function handler(req, res) {
     });
 
     const coursesWithEnrollments = courses.map(course => ({
-      ...course.toObject(),
+      ...course,
       enrolledStudents: enrollmentCountByCourse[course._id.toString()] || 0
     }));
     
