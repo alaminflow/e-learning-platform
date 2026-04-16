@@ -69,7 +69,7 @@ export default async function handler(req, res) {
           email: student.email,
           isVerified: student.isVerified,
           joinedAt: student.createdAt,
-          paymentStatus: payment ? payment.status : 'unpaid',
+          paymentStatus: payment ? payment.status : 'due',
           paidDate: payment ? payment.paidDate : null
         };
       });
