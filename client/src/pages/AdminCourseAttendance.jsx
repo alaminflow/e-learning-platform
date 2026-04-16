@@ -336,56 +336,38 @@ const AdminCourseAttendance = () => {
                 <p className="text-gray-500 dark:text-gray-400">No attendance data for this month</p>
               </div>
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-700">
-                        <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">#</th>
-                        <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Student</th>
-                        <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Present</th>
-                        <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Absent</th>
-                        <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">Percentage</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {summaryData.students.map((student, idx) => {
-                        const pct = student.totalClasses > 0 ? Math.round((student.present / student.totalClasses) * 100) : 0;
-                        return (
-                          <tr key={student._id} className="border-b border-gray-100 dark:border-gray-700/50">
-                            <td className="px-6 py-4 text-sm text-gray-500">{idx + 1}</td>
-                            <td className="px-6 py-4">
-                              <span className="font-medium text-gray-900 dark:text-white text-sm">{student.name}</span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-medium">
-                                {student.present}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className="px-3 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm font-medium">
-                                {student.absent}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all ${pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                                <span className={`text-sm font-semibold ${pct >= 75 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                                  {pct}%
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="space-y-3">
+                {summaryData.students.map((student, idx) => {
+                  const pct = student.totalClasses > 0 ? Math.round((student.present / student.totalClasses) * 100) : 0;
+                  return (
+                    <div key={student._id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white text-sm">{idx + 1}. {student.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className={`text-sm font-semibold ${pct >= 75 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {pct}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-4 text-sm">
+                        <span className="px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
+                          P: {student.present}
+                        </span>
+                        <span className="px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-medium">
+                          A: {student.absent}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
