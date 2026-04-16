@@ -1124,7 +1124,7 @@ export default async function handler(req, res) {
 
     const result = students.map(s => ({
       ...s,
-      status: recordMap[s._id.toString()] || 'absent'
+      status: recordMap[s._id.toString()] || 'unmarked'
     }));
 
     return res.json({ date: date, students: result });
