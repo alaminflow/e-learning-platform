@@ -9,6 +9,8 @@ const Profile = memo(() => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -106,12 +108,12 @@ const Profile = memo(() => {
                     {profile.lastMonthPayment.status === 'paid' ? (
                       <>
                         <CheckCircle className="w-4 h-4" />
-                        Prev. Month: Paid
+                        {months[profile.lastMonthPayment.month - 1]}: Paid
                       </>
                     ) : (
                       <>
                         <Clock className="w-4 h-4" />
-                        Prev. Month: Unpaid
+                        {months[profile.lastMonthPayment.month - 1]}: Due
                       </>
                     )}
                   </div>
