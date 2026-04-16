@@ -47,13 +47,13 @@ export default async function handler(req, res) {
         ];
       }
 
-      const students = await User.find(query).select('name email isVerified createdAt').sort('-createdAt');
+      const students = await User.find(query).select('name email isVerified createdAt').sort('-createdAt').lean();
       
       // Query payments for the given month/year
       const payments = await Payment.find({ 
         month: parseInt(month), 
         year: parseInt(year) 
-      });
+      }).lean();
 
       const paymentMap = {};
       payments.forEach(p => {

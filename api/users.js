@@ -59,7 +59,8 @@ export default async function handler(req, res) {
         .select('-password -verificationOTP -passwordResetOTP')
         .skip(skip)
         .limit(parseInt(limit))
-        .sort('-createdAt');
+        .sort('-createdAt')
+        .lean();
 
       const total = await User.countDocuments(query);
 
