@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { clearCache } from '../lib/apiCache';
 
 const AuthContext = createContext();
