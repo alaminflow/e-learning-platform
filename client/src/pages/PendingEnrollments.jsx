@@ -1,11 +1,13 @@
 import { useState, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Clock, CheckCircle, XCircle, ArrowLeft, Loader2, User, BookOpen, Calendar } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, ArrowLeft, Loader2, User, BookOpen, Calendar, Loader } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 const PendingEnrollments = memo(() => {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -27,25 +29,45 @@ const PendingEnrollments = memo(() => {
   };
 
   const handleApprove = async (enrollmentId, courseId) => {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/courses/${courseId}/enrollments/${enrollmentId}/approve`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    // Clear enrollment caches
-    localStorage.removeItem('user');
-    loadEnrollments();
+    setProcessingId(enrollmentId);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/courses/${courseId}/enrollments/${enrollmentId}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success('Enrollment approved successfully!');
+        localStorage.removeItem('user');
+        loadEnrollments();
+      } else {
+        toast.error('Failed to approve enrollment');
+      }
+    } catch (error) {
+      toast.error('Error approving enrollment');
+    }
+    setProcessingId(null);
   };
 
   const handleReject = async (enrollmentId, courseId) => {
-    const token = localStorage.getItem('token');
-    await fetch(`/api/courses/${courseId}/enrollments/${enrollmentId}/reject`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    // Clear enrollment caches
-    localStorage.removeItem('user');
-    loadEnrollments();
+    setProcessingId(enrollmentId);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/courses/${courseId}/enrollments/${enrollmentId}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success('Enrollment rejected');
+        localStorage.removeItem('user');
+        loadEnrollments();
+      } else {
+        toast.error('Failed to reject enrollment');
+      }
+    } catch (error) {
+      toast.error('Error rejecting enrollment');
+    }
+    setProcessingId(null);
   };
 
   if (loading) return (
@@ -118,16 +140,26 @@ const PendingEnrollments = memo(() => {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleApprove(enrollment._id, enrollment.course._id)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium transition hover:shadow-lg cursor-pointer"
+                            disabled={processingId === enrollment._id}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-xl text-sm font-medium transition hover:shadow-lg cursor-pointer disabled:cursor-not-allowed"
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            {processingId === enrollment._id ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
                             Approve
                           </button>
                           <button
                             onClick={() => handleReject(enrollment._id, enrollment.course._id)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition hover:shadow-lg cursor-pointer"
+                            disabled={processingId === enrollment._id}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-xl text-sm font-medium transition hover:shadow-lg cursor-pointer disabled:cursor-not-allowed"
                           >
-                            <XCircle className="w-4 h-4" />
+                            {processingId === enrollment._id ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <XCircle className="w-4 h-4" />
+                            )}
                             Reject
                           </button>
                         </div>
@@ -161,16 +193,26 @@ const PendingEnrollments = memo(() => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleApprove(enrollment._id, enrollment.course._id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium transition cursor-pointer"
+                      disabled={processingId === enrollment._id}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-xl text-sm font-medium transition cursor-pointer disabled:cursor-not-allowed"
                     >
-                      <CheckCircle className="w-4 h-4" />
+                      {processingId === enrollment._id ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4" />
+                      )}
                       Approve
                     </button>
                     <button
                       onClick={() => handleReject(enrollment._id, enrollment.course._id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition cursor-pointer"
+                      disabled={processingId === enrollment._id}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-xl text-sm font-medium transition cursor-pointer disabled:cursor-not-allowed"
                     >
-                      <XCircle className="w-4 h-4" />
+                      {processingId === enrollment._id ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <XCircle className="w-4 h-4" />
+                      )}
                       Reject
                     </button>
                   </div>
