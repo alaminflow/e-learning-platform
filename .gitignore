@@ -37,3 +37,9 @@ coverage/
 tmp/
 temp/
 client/dist
+
+# Graphify (analysis output)
+graphify-out/
+
+# Plans (planning docs - not code)
+plans/

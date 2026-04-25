@@ -6,6 +6,7 @@ import Result from './_models/Result.js';
 import { protect, admin } from './_middleware/auth.js';
 import connectDB from './_lib/db.js';
 import { getPath, sanitizeInput, extractYouTubeId } from './_lib/utils.js';
+import { cache } from './_lib/redis.js';
 
 export default async function handler(req, res) {
   try {
@@ -35,6 +36,13 @@ export default async function handler(req, res) {
     const { page = 1, limit = 15, search = '', category = '' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // Check cache first
+    const cacheKey = `courses:list:${page}:${limit}:${search}:${category}`;
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     let query = { isPublished: true };
 
     if (search) {
@@ -58,7 +66,7 @@ export default async function handler(req, res) {
 
     const total = await Course.countDocuments(query);
 
-    return res.json({
+    const result = {
       courses,
       pagination: {
         page: parseInt(page),
@@ -66,7 +74,12 @@ export default async function handler(req, res) {
         total,
         pages: Math.ceil(total / parseInt(limit))
       }
-    });
+    };
+
+    // Cache for 5 minutes
+    await cache.set(cacheKey, result, 300);
+
+    return res.json(result);
   }
 
   // POST /api/courses - create course
@@ -98,6 +111,9 @@ export default async function handler(req, res) {
       createdBy: req.user._id,
       chapters: []
     });
+    
+    // Invalidate courses cache
+    await cache.delByPattern('courses:*');
     
     return res.status(201).json(course);
   }
@@ -292,6 +308,8 @@ export default async function handler(req, res) {
       course: courseId
     });
     
+    let enrollmentChanged = false;
+    
     if (existingEnrollment) {
       if (existingEnrollment.status === 'approved') {
         return res.status(400).json({ message: 'Already enrolled' });
@@ -299,38 +317,49 @@ export default async function handler(req, res) {
         if (user.role === 'admin') {
           existingEnrollment.status = 'approved';
           await existingEnrollment.save();
-          return res.json({ message: 'Enrolled successfully' });
+          enrollmentChanged = true;
+        } else {
+          return res.status(400).json({ message: 'Enrollment request already pending' });
         }
-        return res.status(400).json({ message: 'Enrollment request already pending' });
       } else if (existingEnrollment.status === 'rejected') {
         if (user.role === 'admin') {
           existingEnrollment.status = 'approved';
           await existingEnrollment.save();
-          return res.json({ message: 'Enrolled successfully' });
+          enrollmentChanged = true;
+        } else {
+          existingEnrollment.status = 'pending';
+          await existingEnrollment.save();
+          enrollmentChanged = true;
         }
-        existingEnrollment.status = 'pending';
-        await existingEnrollment.save();
-        return res.json({ message: 'Enrollment request submitted' });
+      }
+    } else {
+      if (user.role === 'admin') {
+        await Enrollment.create({
+          student: req.user._id,
+          course: courseId,
+          status: 'approved'
+        });
+        enrollmentChanged = true;
+      } else {
+        await Enrollment.create({
+          student: req.user._id,
+          course: courseId,
+          status: 'pending'
+        });
+        enrollmentChanged = true;
       }
     }
     
-    if (user.role === 'admin') {
-      await Enrollment.create({
-        student: req.user._id,
-        course: courseId,
-        status: 'approved'
-      });
-      
-      return res.json({ message: 'Enrolled successfully' });
+    // Invalidate cache on enrollment change
+    if (enrollmentChanged) {
+      await cache.delByPattern('courses:*');
     }
-
-    await Enrollment.create({
-      student: req.user._id,
-      course: courseId,
-      status: 'pending'
-    });
     
-    return res.json({ message: 'Enrollment request sent. Waiting for admin approval.' });
+    const message = user.role === 'admin' || (existingEnrollment && existingEnrollment.status === 'rejected')
+      ? 'Enrolled successfully'
+      : 'Enrollment request sent. Waiting for admin approval.';
+    
+    return res.json({ message });
   }
 
   // GET /api/courses/:id/students
@@ -465,6 +494,10 @@ export default async function handler(req, res) {
       }
       
       await course.save();
+      
+      // Invalidate courses cache
+      await cache.delByPattern('courses:*');
+      
       return res.json(course);
     }
 
@@ -484,6 +517,10 @@ export default async function handler(req, res) {
       
       await Enrollment.deleteMany({ course: courseId });
       await course.deleteOne();
+      
+      // Invalidate courses cache
+      await cache.delByPattern('courses:*');
+      
       return res.json({ message: 'Course deleted' });
     }
   }

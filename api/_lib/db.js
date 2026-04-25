@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { createIndexes } from './indexes.js';
 
 let isConnected = false;
 
@@ -15,4 +16,7 @@ export default async function connectDB() {
 
   await mongoose.connect(mongoUri);
   isConnected = true;
+  
+  // Create indexes after connection
+  await createIndexes();
 }

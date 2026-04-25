@@ -7,6 +7,7 @@ import Payment from './_models/Payment.js';
 import { protect, admin } from './_middleware/auth.js';
 import connectDB from './_lib/db.js';
 import { getPath } from './_lib/utils.js';
+import { cache } from './_lib/redis.js';
 
 export default async function handler(req, res) {
   const contentLength = req.headers['content-length'];
@@ -71,7 +72,16 @@ export default async function handler(req, res) {
       const authError = await protect(req, res);
       if (authError) return authError;
 
-      const user = await User.findById(req.user._id)
+      const userId = req.user._id.toString();
+      
+      // Check cache first
+      const cacheKey = `user:profile:${userId}`;
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+
+      const user = await User.findById(userId)
         .select('-password -verificationOTP -passwordResetOTP -enrolledCourses');
 
       if (!user) {
@@ -85,7 +95,7 @@ export default async function handler(req, res) {
         path: 'course',
         select: 'title description thumbnail createdBy chapters',
         populate: { path: 'createdBy', select: 'name' }
-      });
+      }).lean();
 
       const coursesWithProgress = enrollments.map(enrollment => {
         const course = enrollment.course;
@@ -165,7 +175,7 @@ export default async function handler(req, res) {
 
       const paymentStatus = currentMonthPaymentRec ? currentMonthPaymentRec.status : 'due';
 
-      return res.json({
+      const result = {
         user,
         enrolledCourses: coursesWithProgress,
         attendanceSummary,
@@ -175,7 +185,12 @@ export default async function handler(req, res) {
           month: currentMonth,
           year: currentYear
         }
-      });
+      };
+
+      // Cache for 1 minute
+      await cache.set(cacheKey, result, 60);
+
+      return res.json(result);
     }
 
     if (method === 'GET' && path === '/tracking') {
@@ -188,13 +203,14 @@ export default async function handler(req, res) {
       const courses = await Course.find({ isPublished: true })
         .select('title description category enrolledStudents')
         .populate('createdBy', 'name')
-        .sort('-createdAt');
+        .sort('-createdAt')
+        .lean();
 
       const courseIds = courses.map(c => c._id);
       const enrollments = await Enrollment.find({
         course: { $in: courseIds },
         status: 'approved'
-      }).populate('student', 'role');
+      }).populate('student', 'role').lean();
 
       const enrollmentByCourse = enrollments.reduce((acc, e) => {
         if (e.student && e.student.role === 'admin') return acc;
