@@ -4,7 +4,6 @@ import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import Toast from "./components/Toast";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { PreloadProvider } from "./context/PreloadContext";
@@ -68,7 +67,6 @@ function App() {
     <AuthProvider>
       <ThemeProvider>
         <PreloadProvider>
-          <SpeedInsights />
           <Router>
             <ErrorBoundary>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">

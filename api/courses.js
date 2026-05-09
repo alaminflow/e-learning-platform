@@ -388,7 +388,7 @@ export default async function handler(req, res) {
     }
     
     const students = enrollments
-      .filter(e => e.student.role !== 'admin')
+      .filter(e => e.student && e.student.role !== 'admin')
       .map(e => ({
       _id: e.student._id,
       name: e.student.name,
