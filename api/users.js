@@ -272,7 +272,7 @@ export default async function handler(req, res) {
 
       let totalWatchTime = 0;
       const studentsWithProgress = enrollments
-        .filter(e => e.student.role !== 'admin')
+        .filter(e => e.student && e.student.role !== 'admin')
         .map(enrollment => {
         const watchedCount = enrollment.watchedVideos.length;
         totalWatchTime += watchedCount;
