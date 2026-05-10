@@ -210,7 +210,8 @@ export default async function handler(req, res) {
     
     const enrollmentCountByCourse = {};
     enrollments.forEach(e => {
-      if (e.student && e.student.role === 'admin') return;
+      // Only count if student exists AND is not admin
+      if (!e.student || e.student.role === 'admin') return;
       const key = e.course.toString();
       enrollmentCountByCourse[key] = (enrollmentCountByCourse[key] || 0) + 1;
     });
@@ -388,7 +389,7 @@ export default async function handler(req, res) {
     }
     
     const students = enrollments
-      .filter(e => e.student.role !== 'admin')
+      .filter(e => e.student && e.student.role !== 'admin')
       .map(e => ({
       _id: e.student._id,
       name: e.student.name,
@@ -472,6 +473,17 @@ export default async function handler(req, res) {
       
       if (!course) {
         return res.status(404).json({ message: 'Course not found' });
+      }
+
+      // Sort chapters alphabetically by title (so "01. Introduction" comes before "02. Basics")
+      if (course.chapters) {
+        course.chapters.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+        // Sort videos within each chapter by order field
+        course.chapters.forEach(chapter => {
+          if (chapter.videos && chapter.videos.length > 0) {
+            chapter.videos.sort((a, b) => (a.order || 0) - (b.order || 0));
+          }
+        });
       }
 
       await cache.set(cacheKey, course, 300);
@@ -722,6 +734,47 @@ export default async function handler(req, res) {
     });
     
     await course.save();
+    return res.json(course);
+  }
+
+  // PUT /api/courses/:id/chapters/:chapterId/videos/reorder - reorder videos in a chapter
+  const videoReorderMatch = path && path.match(/^\/([^/]+)\/chapters\/([^/]+)\/videos\/reorder$/);
+  if (method === 'PUT' && videoReorderMatch) {
+    const courseId = videoReorderMatch[1];
+    const chapterId = videoReorderMatch[2];
+    const authError = await protect(req, res);
+    if (authError) return authError;
+    
+    const adminError = admin(req, res);
+    if (adminError) return adminError;
+    
+    const { videoOrder } = req.body; // Array of video IDs in new order
+    
+    if (!Array.isArray(videoOrder)) {
+      return res.status(400).json({ message: 'videoOrder must be an array of video IDs' });
+    }
+    
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+    
+    const chapter = course.chapters.id(chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+    
+    // Update order for each video based on the new order array
+    videoOrder.forEach((videoId, index) => {
+      const video = chapter.videos.id(videoId);
+      if (video) {
+        video.order = index;
+      }
+    });
+    
+    await course.save();
+    // Invalidate cache
+    await cache.del(`course:detail:${courseId}`);
     return res.json(course);
   }
 

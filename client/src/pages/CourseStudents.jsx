@@ -21,19 +21,33 @@ const CourseStudents = memo(() => {
     loadData();
   }, [id, user]);
 
-  const loadData = () => {
-    const token = localStorage.getItem('token');
-    Promise.all([
-      fetch(`/api/courses/${id}`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`/api/courses/${id}/students`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-      fetch('/api/users?page=1&limit=100', { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json())
-    ]).then(([courseData, studentsData, usersData]) => {
+  const loadData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Fetch course
+      const courseRes = await fetch(`/api/courses/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const courseData = await courseRes.json();
+      
+      // Fetch students
+      const studentsRes = await fetch(`/api/courses/${id}/students`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const studentsData = await studentsRes.json();
+      
+      // Fetch all users
+      const usersRes = await fetch('/api/users?page=1&limit=100', { headers: { 'Authorization': `Bearer ${token}` } });
+      const usersData = await usersRes.json();
+      
       setCourse(courseData);
-      setStudents(studentsData);
+      // Handle both array and object responses
+      setStudents(Array.isArray(studentsData) ? studentsData : (studentsData.students || []));
+      
       const users = usersData.users || usersData;
-      setAllUsers(users.filter(u => u.role === 'student'));
+      setAllUsers((Array.isArray(users) ? users : []).filter(u => u.role === 'student'));
       setLoading(false);
-    });
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setLoading(false);
+    }
   };
 
   const handleEnroll = async () => {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Minimize, Star, CheckCircle, ChevronDown, ChevronUp, FileText, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Minimize, Star, CheckCircle, ChevronDown, ChevronUp, FileText, ArrowLeft, ArrowRight, Loader2, Clock } from 'lucide-react';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 const VideoPlayer = memo(() => {
@@ -336,7 +336,12 @@ const VideoPlayer = memo(() => {
     );
   }
 
+  // Check if current chapter has no videos but has notes
+  const chapterHasNoVideo = currentChapter && (!currentChapter.videos || currentChapter.videos.length === 0);
+  const chapterHasNotes = currentChapter?.notes && currentChapter.notes.length > 0;
+
   if (!currentVideo) {
+    // Case 1: No videos in entire course
     if (!hasVideos || !isValidVideoId) {
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
@@ -353,6 +358,84 @@ const VideoPlayer = memo(() => {
         </div>
       );
     }
+
+    // Case 2: This chapter has no video but has notes - show Coming Soon with notes below
+    if (chapterHasNoVideo && chapterHasNotes) {
+      return (
+        <div className="w-full bg-slate-900">
+          {/* Coming Soon Placeholder */}
+          <div className="relative w-full h-[50vw] sm:h-[45vw] md:h-[40vw] lg:h-[500px] xl:h-[600px] bg-slate-800 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-24 h-24 rounded-2xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mx-auto mb-4">
+                <Play className="w-12 h-12 text-violet-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-300 mb-2">Coming Soon</h2>
+              <p className="text-slate-400">This chapter is being prepared</p>
+            </div>
+          </div>
+
+          {/* Content Area with Notes */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+              <div className="flex-1">
+                {/* Breadcrumbs */}
+                <Breadcrumbs items={[
+                  { label: 'Courses', link: '/courses' },
+                  { label: course?.title, link: `/courses/${courseId}` },
+                  { label: currentChapter?.title || 'Chapter' }
+                ]} />
+
+                {/* Chapter Title */}
+                <div className="mb-6">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">{currentChapter?.title}</h1>
+                  <p className="text-slate-400 text-base">This chapter is coming soon</p>
+                </div>
+
+                {/* Chapter Notes */}
+                <div className="mb-6 p-5 bg-blue-900/20 rounded-2xl border border-blue-800/30">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-400 mb-3">
+                    <FileText className="w-4 h-4" />
+                    Chapter Notes
+                  </h3>
+                  <div className="space-y-2">
+                    {currentChapter.notes.map((note, index) => {
+                      const isGoogleDrive = note.url?.includes('drive.google.com') || note.url?.includes('docs.google.com');
+                      return (
+                        <a 
+                          key={index}
+                          href={note.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm font-medium transition cursor-pointer"
+                        >
+                          {isGoogleDrive ? (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0z"/></svg>
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          <span>{note.title || 'Notes ' + (index + 1)}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Back to Course */}
+                <Link
+                  to={`/courses/${courseId}`}
+                  className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-3 rounded-xl text-sm font-medium transition cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Course
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Case 3: Video not found
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -507,6 +590,8 @@ const VideoPlayer = memo(() => {
                 {course.chapters?.map((chapter, chapterIndex) => {
                   const chapterWatched = chapter.videos?.every(v => watchedVideos.includes(v._id));
                   const isCollapsed = sidebarCollapsed[chapter._id];
+                  const hasNoVideos = !chapter.videos || chapter.videos.length === 0;
+                  const hasNotes = chapter.notes && chapter.notes.length > 0;
                   
                   return (
                     <div key={chapter._id} className="rounded-xl overflow-hidden border border-slate-700">
@@ -516,43 +601,70 @@ const VideoPlayer = memo(() => {
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                            chapterWatched 
-                              ? 'bg-emerald-500 text-white' 
-                              : 'bg-violet-600 text-white'
+                            hasNoVideos 
+                              ? 'bg-amber-500 text-white' 
+                              : chapterWatched 
+                                ? 'bg-emerald-500 text-white' 
+                                : 'bg-violet-600 text-white'
                           }`}>
-                            {chapterIndex + 1}
+                            {hasNoVideos ? <Clock className="w-4 h-4" /> : chapterIndex + 1}
                           </div>
-                          <span className="text-white font-medium text-sm text-left line-clamp-1">
-                            {chapter.title}
-                          </span>
+                          <div className="flex flex-col items-start">
+                            <span className="text-white font-medium text-sm text-left line-clamp-1">
+                              {chapter.title}
+                            </span>
+                            {hasNoVideos && (
+                              <span className="text-xs text-amber-400">Coming soon</span>
+                            )}
+                          </div>
                         </div>
-                        {chapterWatched && <CheckCircle className="w-5 h-5 text-emerald-500" />}
+                        <div className="flex items-center gap-2">
+                          {hasNotes && !hasNoVideos && <FileText className="w-4 h-4 text-blue-400" />}
+                          {chapterWatched && <CheckCircle className="w-5 h-5 text-emerald-500" />}
+                        </div>
                       </button>
 
                       {!isCollapsed && (
                         <div className="divide-y divide-slate-700">
-                          {chapter.videos?.map((video, videoIndex) => {
-                            const isCurrentVideo = video._id === videoId;
-                            const isWatchedVideo = watchedVideos.includes(video._id);
-                            
-                            return (
-                              <Link
-                                key={video._id}
-                                to={`/courses/${courseId}/videos/${video._id}`}
-                                className={`flex items-center gap-3 p-3 pl-12 transition cursor-pointer ${
-                                  isCurrentVideo
-                                    ? 'bg-violet-600/20 text-violet-400'
-                                    : isWatchedVideo
-                                      ? 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/30'
-                                      : 'text-slate-400 hover:bg-slate-700/50'
-                                }`}
+                          {hasNoVideos ? (
+                            // Chapter has no videos - show notes if available
+                            hasNotes && chapter.notes.map((note, noteIndex) => (
+                              <a
+                                key={noteIndex}
+                                href={note.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 pl-12 text-blue-400 hover:bg-slate-700/50 transition cursor-pointer"
                               >
-                                <span className="text-xs w-5">{videoIndex + 1}.</span>
-                                <span className="flex-1 text-sm line-clamp-1">{video.title}</span>
-                                {isWatchedVideo && <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
-                              </Link>
-                            );
-                          })}
+                                <FileText className="w-4 h-4" />
+                                <span className="flex-1 text-sm line-clamp-1">{note.title || 'Notes ' + (noteIndex + 1)}</span>
+                              </a>
+                            ))
+                          ) : (
+                            // Chapter has videos - show them
+                            chapter.videos?.map((video, videoIndex) => {
+                              const isCurrentVideo = video._id === videoId;
+                              const isWatchedVideo = watchedVideos.includes(video._id);
+                              
+                              return (
+                                <Link
+                                  key={video._id}
+                                  to={`/courses/${courseId}/videos/${video._id}`}
+                                  className={`flex items-center gap-3 p-3 pl-12 transition cursor-pointer ${
+                                    isCurrentVideo
+                                      ? 'bg-violet-600/20 text-violet-400'
+                                      : isWatchedVideo
+                                        ? 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/30'
+                                        : 'text-slate-400 hover:bg-slate-700/50'
+                                  }`}
+                                >
+                                  <span className="text-xs w-5">{videoIndex + 1}.</span>
+                                  <span className="flex-1 text-sm line-clamp-1">{video.title}</span>
+                                  {isWatchedVideo && <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+                                </Link>
+                              );
+                            })
+                          )}
                         </div>
                       )}
                     </div>

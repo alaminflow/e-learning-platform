@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Tutor website - MERN stack",
   "scripts": {
-    "start": "node server/server.js",
-    "dev": "nodemon server/server.js",
+    "start": "echo 'Use Vercel for production deployment'",
+    "dev": "cd client && npm run dev",
     "build": "cd client && npm run build"
   },
   "dependencies": {

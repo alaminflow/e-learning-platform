@@ -39,6 +39,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip caching for external resources (like Vercel speed insights)
+  if (!url.origin.includes(self.location.origin)) {
+    return;
+  }
+
   // Cache static assets only
   if (request.method !== 'GET') return;
 
@@ -48,7 +53,11 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
       return fetch(request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
+        // Return original response for opaque responses (like external scripts)
+        if (!response || response.type === 'opaque') {
+          return response;
+        }
+        if (response.status !== 200) {
           return response;
         }
         const responseToCache = response.clone();
@@ -56,6 +65,10 @@ self.addEventListener('fetch', (event) => {
           cache.put(request, responseToCache);
         });
         return response;
+      }).catch((error) => {
+        // Handle network errors gracefully - return a fallback or nothing
+        console.warn('SW fetch failed:', error.message);
+        return new Response('', { status: 503, statusText: 'Service Unavailable' });
       });
     })
   );

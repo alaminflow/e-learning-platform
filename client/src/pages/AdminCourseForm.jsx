@@ -2,8 +2,90 @@ import { useState, useEffect, memo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { Save, Plus, Trash2, Upload, FileText, Play, X, ArrowLeft, Loader2, Check, Image, Link2 } from 'lucide-react';
+import { Save, Plus, Trash2, Upload, FileText, Play, X, ArrowLeft, Loader2, Check, Image, Link2, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import ConfirmDialog from '../components/ConfirmDialog';
+
+// Sortable Chapter Component
+function SortableChapter({ chapter, index, children, isExpanded }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: chapter._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
+    position: 'relative',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="border border-slate-200 dark:border-slate-600 rounded-xl overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 bg-slate-50 dark:bg-slate-700/50">
+        <div className="flex items-center gap-3">
+          <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+            <GripVertical className="w-5 h-5" />
+          </button>
+          <h3 className="font-semibold text-slate-900 dark:text-white">
+            {index + 1}. {chapter.title}
+          </h3>
+        </div>
+        {children}
+      </div>
+      {isExpanded}
+    </div>
+  );
+}
+
+// Sortable Video Component
+function SortableVideo({ video, index, chapterIndex }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: video._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex justify-between items-center bg-slate-100 dark:bg-slate-900 p-2 rounded-lg">
+      <div className="flex items-center gap-2 flex-1">
+        <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <span className="text-sm text-slate-700 dark:text-slate-300 truncate">{chapterIndex + 1}.{index + 1} {video.title}</span>
+      </div>
+    </div>
+  );
+}
 
 const AdminCourseForm = memo(() => {
   const { id } = useParams();
@@ -29,6 +111,72 @@ const AdminCourseForm = memo(() => {
   const [newNoteTitle, setNewNoteTitle] = useState({});
   const [newNoteUrl, setNewNoteUrl] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle chapter drag end
+  const handleChapterDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = course.chapters.findIndex(ch => ch._id === active.id);
+    const newIndex = course.chapters.findIndex(ch => ch._id === over.id);
+
+    const newChapters = arrayMove(course.chapters, oldIndex, newIndex);
+    setCourse({ ...course, chapters: newChapters });
+  };
+
+  // Handle video drag end within a chapter
+  const handleVideoDragEnd = async (chapterId, event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const chapter = course.chapters.find(ch => ch._id === chapterId);
+    if (!chapter) return;
+
+    const oldIndex = chapter.videos.findIndex(v => v._id === active.id);
+    const newIndex = chapter.videos.findIndex(v => v._id === over.id);
+
+    const newVideos = arrayMove(chapter.videos, oldIndex, newIndex);
+
+    // Update the chapter's videos
+    const updatedChapters = course.chapters.map(ch => {
+      if (ch._id === chapterId) {
+        return { ...ch, videos: newVideos };
+      }
+      return ch;
+    });
+
+    setCourse({ ...course, chapters: updatedChapters });
+
+    // Save the new order to backend
+    try {
+      const token = localStorage.getItem('token');
+      const videoOrder = newVideos.map(v => v._id);
+      await fetch(`/api/courses/${id}/chapters/${chapterId}/videos/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ videoOrder })
+      });
+      toast.success('Video order saved');
+    } catch (error) {
+      console.error('Error saving video order:', error);
+      toast.error('Failed to save video order');
+    }
+  };
 
   const getYouTubeTitle = async (url) => {
     const videoId = extractVideoId(url);
@@ -391,86 +539,105 @@ const AdminCourseForm = memo(() => {
               </div>
               {!id && <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">⚠️ Save course first before adding chapters.</p>}
 
-              {/* Chapter List */}
-              <div className="space-y-4">
-                {course.chapters?.map((chapter, index) => (
-                  <div key={chapter._id} className="border border-slate-200 dark:border-slate-600 rounded-xl overflow-hidden">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 bg-slate-50 dark:bg-slate-700/50">
-                      <h3 className="font-semibold text-slate-900 dark:text-white">
-                        {index + 1}. {chapter.title}
-                      </h3>
-                      <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => setShowNotesForm(showNotesForm === chapter._id ? '' : chapter._id)} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer">
-                          + Notes
-                        </button>
-                        <button onClick={() => { setShowVideoForm(chapter._id); setNewVideo({ ...newVideo, chapterId: chapter._id }); }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-lg text-sm font-medium hover:bg-violet-200 dark:hover:bg-violet-900/50 transition cursor-pointer">
-                          + Video
-                        </button>
-                        <button onClick={() => handleDeleteChapter(chapter._id)} className="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition cursor-pointer">
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Notes Section */}
-                    {chapter.notes?.length > 0 && (
-                      <div className="p-4 border-t border-slate-200 dark:border-slate-600">
-                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Notes:</p>
-                        <div className="space-y-2">
-                          {chapter.notes.map((note, i) => (
-                            <div key={i} className="flex justify-between items-center bg-slate-100 dark:bg-slate-900 p-2 rounded-lg">
-                              <span className="text-sm text-slate-700 dark:text-slate-300 truncate flex-1">{note.title}</span>
-                              <button onClick={() => handleDeleteSingleNote(chapter._id, note._id)} className="text-red-500 hover:text-red-700 text-xs ml-2 cursor-pointer">Delete</button>
+              {/* Chapter List with Drag & Drop */}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleChapterDragEnd}
+              >
+                <SortableContext
+                  items={course.chapters?.map(ch => ch._id) || []}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-4">
+                    {course.chapters?.map((chapter, index) => (
+                      <SortableChapter key={chapter._id} chapter={chapter} index={index} isExpanded={
+                        <>
+                          {/* Notes Section */}
+                          {chapter.notes?.length > 0 && (
+                            <div className="p-4 border-t border-slate-200 dark:border-slate-600">
+                              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Notes:</p>
+                              <div className="space-y-2">
+                                {chapter.notes.map((note, i) => (
+                                  <div key={i} className="flex justify-between items-center bg-slate-100 dark:bg-slate-900 p-2 rounded-lg">
+                                    <span className="text-sm text-slate-700 dark:text-slate-300 truncate flex-1">{note.title}</span>
+                                    <button onClick={() => handleDeleteSingleNote(chapter._id, note._id)} className="text-red-500 hover:text-red-700 text-xs ml-2 cursor-pointer">Delete</button>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                          )}
 
-                    {showNotesForm === chapter._id && (
-                      <div className="p-4 border-t border-slate-200 dark:border-slate-600 bg-emerald-50 dark:bg-emerald-900/20">
-                        <div className="mb-3">
-                          <input type="text" placeholder="Note title" value={newNoteTitle[chapter._id] || ''} onChange={(e) => setNewNoteTitle({ ...newNoteTitle, [chapter._id]: e.target.value })} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900" />
-                        </div>
-                        <div className="flex gap-2">
-                          <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm cursor-pointer">
-                            <Upload className="w-4 h-4" />
-                            PDF
-                            <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { if (e.target.files[0]) { setNewNoteTitle({ ...newNoteTitle, [chapter._id]: e.target.files[0].name.replace(/\.[^/.]+$/, '') }); handleUploadNotes(chapter._id, e.target.files[0]); } }} />
-                          </label>
-                          <span className="flex items-center text-slate-400 text-sm">or</span>
-                          <div className="flex-1 flex gap-2">
-                            <input type="url" placeholder="Drive link..." value={newNoteUrl[chapter._id] || ''} onChange={(e) => setNewNoteUrl({ ...newNoteUrl, [chapter._id]: e.target.value })} className="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900" />
-                            <button onClick={() => handleAddGoogleDriveNote(chapter._id)} className="px-3 py-2 bg-violet-600 text-white rounded-lg text-sm cursor-pointer">Add</button>
+                          {showNotesForm === chapter._id && (
+                            <div className="p-4 border-t border-slate-200 dark:border-slate-600 bg-emerald-50 dark:bg-emerald-900/20">
+                              <div className="mb-3">
+                                <input type="text" placeholder="Note title" value={newNoteTitle[chapter._id] || ''} onChange={(e) => setNewNoteTitle({ ...newNoteTitle, [chapter._id]: e.target.value })} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900" />
+                              </div>
+                              <div className="flex gap-2">
+                                <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm cursor-pointer">
+                                  <Upload className="w-4 h-4" />
+                                  PDF
+                                  <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { if (e.target.files[0]) { setNewNoteTitle({ ...newNoteTitle, [chapter._id]: e.target.files[0].name.replace(/\.[^/.]+$/, '') }); handleUploadNotes(chapter._id, e.target.files[0]); } }} />
+                                </label>
+                                <span className="flex items-center text-slate-400 text-sm">or</span>
+                                <div className="flex-1 flex gap-2">
+                                  <input type="url" placeholder="Drive link..." value={newNoteUrl[chapter._id] || ''} onChange={(e) => setNewNoteUrl({ ...newNoteUrl, [chapter._id]: e.target.value })} className="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900" />
+                                  <button onClick={() => handleAddGoogleDriveNote(chapter._id)} className="px-3 py-2 bg-violet-600 text-white rounded-lg text-sm cursor-pointer">Add</button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Video Form */}
+                          {showVideoForm === chapter._id && (
+                            <div className="p-4 border-t border-slate-200 dark:border-slate-600 bg-violet-50 dark:bg-violet-900/20">
+                              <input type="text" placeholder="Video title" value={newVideo.title} onChange={e => setNewVideo({ ...newVideo, title: e.target.value })} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 mb-2" />
+                              <div className="flex gap-2">
+                                <input type="url" placeholder="YouTube URL" value={newVideo.youtubeUrl} onChange={handleYoutubeUrlChange} className="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900" />
+                                <button onClick={handleAddVideo} disabled={!newVideo.youtubeUrl} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm disabled:opacity-50 cursor-pointer">Add</button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Videos List with Drag & Drop */}
+                          <div className="p-4 border-t border-slate-200 dark:border-slate-600 space-y-2">
+                            {chapter.videos?.length > 0 ? (
+                              <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={(event) => handleVideoDragEnd(chapter._id, event)}
+                              >
+                                <SortableContext
+                                  items={chapter.videos.map(v => v._id)}
+                                  strategy={verticalListSortingStrategy}
+                                >
+                                  {chapter.videos?.map((video, vIndex) => (
+                                    <SortableVideo key={video._id} video={video} index={vIndex} chapterIndex={index} />
+                                  ))}
+                                </SortableContext>
+                              </DndContext>
+                            ) : (
+                              <p className="text-sm text-slate-400">No videos yet</p>
+                            )}
                           </div>
+                        </>
+                      }>
+                        <div className="flex gap-2 flex-wrap">
+                          <button onClick={() => setShowNotesForm(showNotesForm === chapter._id ? '' : chapter._id)} className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm font-medium hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer">
+                            + Notes
+                          </button>
+                          <button onClick={() => { setShowVideoForm(chapter._id); setNewVideo({ ...newVideo, chapterId: chapter._id }); }} className="px-3 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-lg text-sm font-medium hover:bg-violet-200 dark:hover:bg-violet-900/50 transition cursor-pointer">
+                            + Video
+                          </button>
+                          <button onClick={() => handleDeleteChapter(chapter._id)} className="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition cursor-pointer">
+                            Delete
+                          </button>
                         </div>
-                      </div>
-                    )}
-
-                    {/* Video Form */}
-                    {showVideoForm === chapter._id && (
-                      <div className="p-4 border-t border-slate-200 dark:border-slate-600 bg-violet-50 dark:bg-violet-900/20">
-                        <input type="text" placeholder="Video title" value={newVideo.title} onChange={e => setNewVideo({ ...newVideo, title: e.target.value })} className="w-full px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 mb-2" />
-                        <div className="flex gap-2">
-                          <input type="url" placeholder="YouTube URL" value={newVideo.youtubeUrl} onChange={handleYoutubeUrlChange} className="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900" />
-                          <button onClick={handleAddVideo} disabled={!newVideo.youtubeUrl} className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm disabled:opacity-50 cursor-pointer">Add</button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Videos List */}
-                    <div className="p-4 border-t border-slate-200 dark:border-slate-600 space-y-2">
-                      {chapter.videos?.map((video, vIndex) => (
-                        <div key={video._id} className="flex justify-between items-center bg-slate-100 dark:bg-slate-900 p-2 rounded-lg">
-                          <span className="text-sm text-slate-700 dark:text-slate-300 truncate flex-1">{index + 1}.{vIndex + 1} {video.title}</span>
-                          <button onClick={() => handleDeleteVideo(chapter._id, video._id)} className="text-red-500 hover:text-red-700 text-xs ml-2 cursor-pointer">Delete</button>
-                        </div>
-                      ))}
-                      {chapter.videos?.length === 0 && <p className="text-sm text-slate-400">No videos yet</p>}
-                    </div>
+                      </SortableChapter>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
 

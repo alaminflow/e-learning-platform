@@ -20,8 +20,17 @@ const CourseProgress = memo(() => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/users/tracking/${courseId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-      setData(await res.json());
-    } catch (error) { console.error('Error:', error); }
+      const json = await res.json();
+      
+      if (!res.ok) {
+        setData({ error: json.message || 'Failed to load course', course: null });
+      } else {
+        setData(json);
+      }
+    } catch (error) { 
+      console.error('Error:', error);
+      setData({ error: error.message, course: null });
+    }
     finally { setLoading(false); }
   };
 
@@ -34,7 +43,7 @@ const CourseProgress = memo(() => {
   if (!data?.course) return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
       <div className="text-center">
-        <p className="text-slate-600 dark:text-slate-400 text-lg">Course not found</p>
+        <p className="text-slate-600 dark:text-slate-400 text-lg">{data?.error || 'Course not found'}</p>
         <Link to="/admin/tracking" className="text-violet-600 dark:text-violet-400 mt-4 inline-block cursor-pointer">Back to Tracking</Link>
       </div>
     </div>
