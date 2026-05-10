@@ -210,7 +210,8 @@ export default async function handler(req, res) {
     
     const enrollmentCountByCourse = {};
     enrollments.forEach(e => {
-      if (e.student && e.student.role === 'admin') return;
+      // Only count if student exists AND is not admin
+      if (!e.student || e.student.role === 'admin') return;
       const key = e.course.toString();
       enrollmentCountByCourse[key] = (enrollmentCountByCourse[key] || 0) + 1;
     });
