@@ -217,7 +217,7 @@ export default async function handler(req, res) {
       }).select('course student watchedVideos videoRatings').populate('student', 'role').lean();
 
       const enrollmentByCourse = enrollments.reduce((acc, e) => {
-        if (e.student && e.student.role === 'admin') return acc;
+        if (!e.student || e.student.role === 'admin') return acc;
         const key = e.course.toString();
         if (!acc[key]) acc[key] = [];
         acc[key].push(e);

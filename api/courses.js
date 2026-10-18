@@ -194,22 +194,19 @@ export default async function handler(req, res) {
     let enrollmentCountByCourse = {};
 
     if (courseIds.length > 0) {
-      const counts = await Enrollment.aggregate([
-        { $match: { course: { $in: courseIds }, status: 'approved' } },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'student',
-            foreignField: '_id',
-            as: 'studentData'
-          }
-        },
-        { $match: { 'studentData.role': { $ne: 'admin' } } },
-        { $group: { _id: '$course', count: { $sum: 1 } } }
-      ]);
+      const enrollments = await Enrollment.find({
+        course: { $in: courseIds },
+        status: 'approved'
+      })
+        .select('course student')
+        .populate('student', 'role')
+        .lean();
 
-      counts.forEach(c => {
-        enrollmentCountByCourse[c._id.toString()] = c.count;
+      enrollments.forEach(e => {
+        // Only count if student exists AND is not admin (matches inside list logic exactly)
+        if (!e.student || e.student.role === 'admin') return;
+        const key = e.course.toString();
+        enrollmentCountByCourse[key] = (enrollmentCountByCourse[key] || 0) + 1;
       });
     }
 
@@ -380,10 +377,12 @@ export default async function handler(req, res) {
     const adminError = admin(req, res);
     if (adminError) return adminError;
     
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    
     const enrollments = await Enrollment.find({ 
       course: courseId, 
       status: 'approved' 
-    }).populate('student', 'name email createdAt');
+    }).populate('student', 'name email role createdAt').lean();
     
     if (!enrollments.length) {
       return res.json([]);
