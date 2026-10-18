@@ -4,13 +4,13 @@
   "framework": "vite",
   "installCommand": "npm install && cd client && npm install",
   "functions": {
-    "api/courses.js":    { "maxDuration": 15, "memory": 512 },
-    "api/users.js":      { "maxDuration": 15, "memory": 512 },
-    "api/auth/index.js": { "maxDuration": 10, "memory": 256 },
-    "api/payments.js":   { "maxDuration": 10, "memory": 256 },
-    "api/upload.js":     { "maxDuration": 30, "memory": 512 },
-    "api/health.js":     { "maxDuration": 5,  "memory": 128 },
-    "api/sitemap.js":    { "maxDuration": 10, "memory": 128 }
+    "api/courses.js":    { "maxDuration": 15 },
+    "api/users.js":      { "maxDuration": 15 },
+    "api/auth/index.js": { "maxDuration": 10 },
+    "api/payments.js":   { "maxDuration": 10 },
+    "api/upload.js":     { "maxDuration": 30 },
+    "api/health.js":     { "maxDuration": 5 },
+    "api/sitemap.js":    { "maxDuration": 10 }
   },
   "rewrites": [
     { "source": "/api/health",       "destination": "/api/health.js" },
