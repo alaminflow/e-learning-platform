@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { clearCache } from '../lib/apiCache';
 
 const AuthContext = createContext();
@@ -193,20 +193,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const enrollmentCacheRef = useRef(new Map());
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    enrollmentCache.clear();
+    enrollmentCacheRef.current.clear();
   };
-
-  const enrollmentCache = new Map();
 
   const isEnrolled = (courseId) => {
     if (!user) return false;
     if (user.role === 'admin') return true;
-    if (enrollmentCache.has(courseId)) {
-      return enrollmentCache.get(courseId);
+    if (enrollmentCacheRef.current.has(courseId)) {
+      return enrollmentCacheRef.current.get(courseId);
     }
     if (!user.enrolledCourses) return false;
     const courseIdStr = courseId.toString();
@@ -214,14 +214,14 @@ export const AuthProvider = ({ children }) => {
       id === courseIdStr || 
       id?.toString() === courseIdStr
     );
-    enrollmentCache.set(courseId, result);
+    enrollmentCacheRef.current.set(courseId, result);
     return result;
   };
 
   const checkEnrollment = async (courseId) => {
     if (!user) return false;
-    if (enrollmentCache.has(courseId)) {
-      return enrollmentCache.get(courseId);
+    if (enrollmentCacheRef.current.has(courseId)) {
+      return enrollmentCacheRef.current.get(courseId);
     }
     const token = localStorage.getItem('token');
     try {
@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }) => {
       if (res.ok) {
         const data = await res.json();
         const result = data.status === 'approved';
-        enrollmentCache.set(courseId, result);
+        enrollmentCacheRef.current.set(courseId, result);
         return result;
       }
     } catch (err) {
@@ -245,7 +245,7 @@ export const AuthProvider = ({ children }) => {
     if (userData) {
       setUser(JSON.parse(userData));
       clearCache();
-      enrollmentCache.clear();
+      enrollmentCacheRef.current.clear();
     }
   };
 

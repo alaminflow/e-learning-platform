@@ -2,12 +2,10 @@ import mongoose from 'mongoose';
 import { createIndexes } from './indexes.js';
 
 // Use globalThis so the connection survives across Vercel serverless hot-reloads.
-// A plain module-scope variable resets on every cold start; globalThis persists
-// as long as the execution context (container) is alive.
 const cached = globalThis._mongooseCache || (globalThis._mongooseCache = { conn: null, promise: null });
 
 export default async function connectDB() {
-  if (cached.conn) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
@@ -20,14 +18,20 @@ export default async function connectDB() {
 
     cached.promise = mongoose
       .connect(mongoUri, {
-        maxPoolSize: 5,               // limit open connections per container
+        maxPoolSize: 3,               // Safe for MongoDB Atlas M0 free tier (100 connection limit)
+        minPoolSize: 0,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
-        bufferCommands: false,        // fail fast instead of queuing indefinitely
+        bufferCommands: false,        // Fail fast instead of queuing indefinitely
       })
-      .then(async (m) => {
-        await createIndexes();        // only runs once per container lifetime
+      .then((m) => {
+        // Run index creation asynchronously in background without blocking initial request
+        createIndexes().catch(() => {});
         return m;
+      })
+      .catch((err) => {
+        cached.promise = null;
+        throw err;
       });
   }
 

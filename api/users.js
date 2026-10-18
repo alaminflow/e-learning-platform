@@ -37,6 +37,8 @@ export default async function handler(req, res) {
       const adminError = admin(req, res);
       if (adminError) return adminError;
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
       const { page = 1, limit = 15, search = '' } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -48,14 +50,15 @@ export default async function handler(req, res) {
         ];
       }
 
-      const users = await User.find(query)
-        .select('-password -verificationOTP -passwordResetOTP')
-        .skip(skip)
-        .limit(parseInt(limit))
-        .sort('-createdAt')
-        .lean();
-
-      const total = await User.countDocuments(query);
+      const [users, total] = await Promise.all([
+        User.find(query)
+          .select('-password -verificationOTP -passwordResetOTP')
+          .skip(skip)
+          .limit(parseInt(limit))
+          .sort('-createdAt')
+          .lean(),
+        User.countDocuments(query)
+      ]);
 
       return res.json({
         users,
@@ -72,6 +75,8 @@ export default async function handler(req, res) {
       const authError = await protect(req, res);
       if (authError) return authError;
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
       const userId = req.user._id.toString();
       
       // Check cache first
@@ -81,28 +86,50 @@ export default async function handler(req, res) {
         return res.json(cached);
       }
 
-      const user = await User.findById(userId)
-        .select('-password -verificationOTP -passwordResetOTP -enrolledCourses');
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+
+      // Run all profile queries in parallel
+      const [user, enrollments, attendanceRecords, results, currentMonthPaymentRec] = await Promise.all([
+        User.findById(userId)
+          .select('-password -verificationOTP -passwordResetOTP -enrolledCourses')
+          .lean(),
+        Enrollment.find({
+          student: userId,
+          status: 'approved'
+        }).populate({
+          path: 'course',
+          select: 'title description thumbnail createdBy chapters',
+          populate: { path: 'createdBy', select: 'name' }
+        }).lean(),
+        Attendance.find({
+          student: userId,
+          date: { $gte: monthStart, $lt: monthEnd }
+        }).populate('course', 'title').lean(),
+        Result.find({ student: userId })
+          .populate('course', 'title')
+          .sort('-createdAt')
+          .lean(),
+        Payment.findOne({
+          student: userId,
+          month: currentMonth,
+          year: currentYear
+        }).lean()
+      ]);
 
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      const enrollments = await Enrollment.find({
-        student: user._id,
-        status: 'approved'
-      }).populate({
-        path: 'course',
-        select: 'title description thumbnail createdBy chapters',
-        populate: { path: 'createdBy', select: 'name' }
-      }).lean();
-
       const coursesWithProgress = enrollments.map(enrollment => {
         const course = enrollment.course;
         if (!course) return null;
 
-        const totalVideos = course.chapters.reduce((acc, ch) => acc + ch.videos.length, 0);
-        const watchedCount = enrollment.watchedVideos.length;
+        const totalVideos = course.chapters ? course.chapters.reduce((acc, ch) => acc + (ch.videos ? ch.videos.length : 0), 0) : 0;
+        const watchedCount = enrollment.watchedVideos ? enrollment.watchedVideos.length : 0;
         const progress = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
 
         return {
@@ -115,15 +142,6 @@ export default async function handler(req, res) {
           enrolledAt: enrollment.createdAt
         };
       }).filter(Boolean);
-
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-      const attendanceRecords = await Attendance.find({
-        student: user._id,
-        date: { $gte: monthStart, $lt: monthEnd }
-      }).populate('course', 'title');
 
       const attendanceMap = {};
       attendanceRecords.forEach(r => {
@@ -138,10 +156,6 @@ export default async function handler(req, res) {
       });
 
       const attendanceSummary = Object.values(attendanceMap);
-
-      const results = await Result.find({ student: user._id })
-        .populate('course', 'title')
-        .sort('-createdAt');
 
       const resultsGrouped = {};
       results.forEach(r => {
@@ -161,18 +175,6 @@ export default async function handler(req, res) {
       });
 
       const resultsSummary = Object.values(resultsGrouped);
-
-      // Fetch current month's payment status
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
-      
-      const currentMonthPaymentRec = await Payment.findOne({
-        student: user._id,
-        month: currentMonth,
-        year: currentYear
-      });
-
       const paymentStatus = currentMonthPaymentRec ? currentMonthPaymentRec.status : 'due';
 
       const result = {
@@ -187,7 +189,7 @@ export default async function handler(req, res) {
         }
       };
 
-      // Cache for 1 minute
+      // Cache for 1 minute in Redis
       await cache.set(cacheKey, result, 60);
 
       return res.json(result);
@@ -200,6 +202,8 @@ export default async function handler(req, res) {
       const adminError = admin(req, res);
       if (adminError) return adminError;
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
       const courses = await Course.find({ isPublished: true })
         .select('title description category enrolledStudents')
         .populate('createdBy', 'name')
@@ -210,7 +214,7 @@ export default async function handler(req, res) {
       const enrollments = await Enrollment.find({
         course: { $in: courseIds },
         status: 'approved'
-      }).populate('student', 'role').lean();
+      }).select('course student watchedVideos videoRatings').populate('student', 'role').lean();
 
       const enrollmentByCourse = enrollments.reduce((acc, e) => {
         if (e.student && e.student.role === 'admin') return acc;
@@ -222,7 +226,7 @@ export default async function handler(req, res) {
 
       const coursesWithStats = courses.map(course => {
         const courseEnrollments = enrollmentByCourse[course._id.toString()] || [];
-        const totalWatched = courseEnrollments.reduce((sum, e) => sum + e.watchedVideos.length, 0);
+        const totalWatched = courseEnrollments.reduce((sum, e) => sum + (e.watchedVideos ? e.watchedVideos.length : 0), 0);
         
         const allVideoRatings = courseEnrollments.flatMap(e => e.videoRatings || []);
         const avgRating = allVideoRatings.length > 0 
@@ -256,25 +260,30 @@ export default async function handler(req, res) {
       const adminError = admin(req, res);
       if (adminError) return adminError;
 
-      const course = await Course.findById(courseId)
-        .populate('createdBy', 'name');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+      const [course, enrollments] = await Promise.all([
+        Course.findById(courseId)
+          .select('title chapters.videos')
+          .populate('createdBy', 'name')
+          .lean(),
+        Enrollment.find({
+          course: courseId,
+          status: 'approved'
+        }).populate('student', 'name email role').lean()
+      ]);
 
       if (!course) {
         return res.status(404).json({ message: 'Course not found' });
       }
 
-      const enrollments = await Enrollment.find({
-        course: courseId,
-        status: 'approved'
-      }).populate('student', 'name email role');
-
-      const totalVideos = course.chapters.reduce((acc, ch) => acc + ch.videos.length, 0);
+      const totalVideos = course.chapters ? course.chapters.reduce((acc, ch) => acc + (ch.videos ? ch.videos.length : 0), 0) : 0;
 
       let totalWatchTime = 0;
       const studentsWithProgress = enrollments
         .filter(e => e.student && e.student.role !== 'admin')
         .map(enrollment => {
-        const watchedCount = enrollment.watchedVideos.length;
+        const watchedCount = enrollment.watchedVideos ? enrollment.watchedVideos.length : 0;
         totalWatchTime += watchedCount;
         const progress = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
 
@@ -285,7 +294,7 @@ export default async function handler(req, res) {
           watchedVideos: watchedCount,
           totalVideos,
           progress,
-          lastWatched: enrollment.watchedVideos.length > 0 
+          lastWatched: enrollment.watchedVideos && enrollment.watchedVideos.length > 0 
             ? enrollment.watchedVideos[enrollment.watchedVideos.length - 1].watchedAt 
             : null
         };
@@ -316,28 +325,33 @@ export default async function handler(req, res) {
       const adminError = admin(req, res);
       if (adminError) return adminError;
 
-      const course = await Course.findById(courseId);
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+      const [course, student, enrollment] = await Promise.all([
+        Course.findById(courseId).select('title chapters').lean(),
+        User.findById(studentId).select('name email').lean(),
+        Enrollment.findOne({
+          course: courseId,
+          student: studentId,
+          status: 'approved'
+        }).lean()
+      ]);
+
       if (!course) {
         return res.status(404).json({ message: 'Course not found' });
       }
 
-      const student = await User.findById(studentId).select('name email');
       if (!student) {
         return res.status(404).json({ message: 'Student not found' });
       }
-
-      const enrollment = await Enrollment.findOne({
-        course: courseId,
-        student: studentId,
-        status: 'approved'
-      });
 
       if (!enrollment) {
         return res.status(404).json({ message: 'Enrollment not found' });
       }
 
       const dailyWatchTime = {};
-      enrollment.watchedVideos.forEach(v => {
+      const watchedVideosList = enrollment.watchedVideos || [];
+      watchedVideosList.forEach(v => {
         const date = new Date(v.watchedAt).toISOString().split('T')[0];
         dailyWatchTime[date] = (dailyWatchTime[date] || 0) + 1;
       });
@@ -347,24 +361,28 @@ export default async function handler(req, res) {
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       const videoDetails = {};
-      course.chapters.forEach(ch => {
-        ch.videos.forEach(v => {
-          videoDetails[v._id.toString()] = {
-            title: v.title,
-            chapterTitle: ch.title
-          };
+      if (course.chapters) {
+        course.chapters.forEach(ch => {
+          if (ch.videos) {
+            ch.videos.forEach(v => {
+              videoDetails[v._id.toString()] = {
+                title: v.title,
+                chapterTitle: ch.title
+              };
+            });
+          }
         });
-      });
+      }
 
-      const watchedVideos = enrollment.watchedVideos.map(w => ({
+      const watchedVideos = watchedVideosList.map(w => ({
         videoId: w.videoId,
         title: videoDetails[w.videoId]?.title || 'Unknown',
         chapterTitle: videoDetails[w.videoId]?.chapterTitle || 'Unknown',
         watchedAt: w.watchedAt
       }));
 
-      const totalVideos = course.chapters.reduce((acc, ch) => acc + ch.videos.length, 0);
-      const progress = totalVideos > 0 ? Math.round((enrollment.watchedVideos.length / totalVideos) * 100) : 0;
+      const totalVideos = course.chapters ? course.chapters.reduce((acc, ch) => acc + (ch.videos ? ch.videos.length : 0), 0) : 0;
+      const progress = totalVideos > 0 ? Math.round((watchedVideosList.length / totalVideos) * 100) : 0;
 
       return res.json({
         student: {
@@ -377,7 +395,7 @@ export default async function handler(req, res) {
           title: course.title
         },
         progress: {
-          watchedVideos: enrollment.watchedVideos.length,
+          watchedVideos: watchedVideosList.length,
           totalVideos,
           percentage: progress
         },

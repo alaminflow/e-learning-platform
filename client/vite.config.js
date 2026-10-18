@@ -15,6 +15,8 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui': ['lucide-react'],
+          'vendor-charts': ['chart.js', 'react-chartjs-2'],
+          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-others': ['react-toastify']
         }
       }

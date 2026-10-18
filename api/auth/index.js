@@ -79,6 +79,8 @@ export default async function handler(req, res) {
   const { method } = req;
   const path = getPath(req.url);
 
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
   try {
     if (method === 'POST' && (path === '/' || path === '' || path === '/register')) {
       const { name, email, password, role } = req.body;

@@ -12,7 +12,7 @@ const Home = memo(() => {
 
   useEffect(() => {
     if (preloadedCourses) {
-      setCourses(preloadedCourses);
+      setCourses(preloadedCourses.slice(0, 6));
       setLoading(false);
     } else if (!preloading) {
       fetch("/api/courses?page=1&limit=6")

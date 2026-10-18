@@ -24,6 +24,8 @@ export default async function handler(req, res) {
       const adminError = admin(req, res);
       if (adminError) return adminError;
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
       const { month, year, search } = req.query;
       
       if (!month || !year) {
@@ -39,13 +41,14 @@ export default async function handler(req, res) {
         ];
       }
 
-      const students = await User.find(query).select('name email isVerified createdAt').sort('-createdAt').lean();
-      
-      // Query payments for the given month/year
-      const payments = await Payment.find({ 
-        month: parseInt(month), 
-        year: parseInt(year) 
-      }).lean();
+      // Run both queries concurrently
+      const [students, payments] = await Promise.all([
+        User.find(query).select('name email isVerified createdAt').sort('-createdAt').lean(),
+        Payment.find({ 
+          month: parseInt(month), 
+          year: parseInt(year) 
+        }).lean()
+      ]);
 
       const paymentMap = {};
       payments.forEach(p => {
