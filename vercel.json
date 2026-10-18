@@ -12,12 +12,6 @@
     "api/health.js":     { "maxDuration": 5,  "memory": 128 },
     "api/sitemap.js":    { "maxDuration": 10, "memory": 128 }
   },
-  "crons": [
-    {
-      "path": "/api/health",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "rewrites": [
     { "source": "/api/health",       "destination": "/api/health.js" },
     { "source": "/api/health/(.*)",  "destination": "/api/health.js" },
