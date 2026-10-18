@@ -71,66 +71,70 @@ function App() {
             <ErrorBoundary>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors">
               <Navbar />
-              <Suspense fallback={<Loading />}>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                <Route path="/courses" element={<Courses />} />
-                <Route path="/courses/:id" element={<CourseDetail />} />
-                <Route
-                  path="/courses/:courseId/videos/:videoId"
-                  element={<VideoPlayer />}
-                />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<RegisterWithOTP />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/change-password" element={<ChangePassword />} />
-                <Route path="/my-courses" element={<MyCourses />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route
-                  path="/admin/courses/new"
-                  element={<AdminCourseForm />}
-                />
-                <Route
-                  path="/admin/courses/:id/edit"
-                  element={<AdminCourseForm />}
-                />
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route
-                  path="/admin/courses/:id/students"
-                  element={<CourseStudents />}
-                />
-                <Route
-                  path="/admin/enrollments"
-                  element={<PendingEnrollments />}
-                />
-                <Route path="/admin/tracking" element={<Tracking />} />
-                <Route
-                  path="/admin/tracking/:courseId"
-                  element={<CourseProgress />}
-                />
-                <Route
-                  path="/admin/tracking/:courseId/student/:studentId"
-                  element={<StudentProgress />}
-                />
-                <Route
-                  path="/admin/tracking/:courseId/ratings"
-                  element={<VideoRatings />}
-                />
-                <Route path="/admin/attendance" element={<AdminAttendance />} />
-                <Route
-                  path="/admin/attendance/:courseId"
-                  element={<AdminCourseAttendance />}
-                />
-                <Route path="/admin/results" element={<AdminResults />} />
-                <Route
-                  path="/admin/results/:courseId"
-                  element={<AdminCourseResults />}
-                />
-<Route path="/admin/payments" element={<AdminPayments />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
+              <main className="flex-1 flex flex-col">
+                <Suspense fallback={<Loading />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/courses" element={<Courses />} />
+                    <Route path="/courses/:id" element={<CourseDetail />} />
+                    <Route
+                      path="/courses/:courseId/videos/:videoId"
+                      element={<VideoPlayer />}
+                    />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<RegisterWithOTP />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/change-password" element={<ChangePassword />} />
+                    <Route path="/my-courses" element={<MyCourses />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
+                    <Route
+                      path="/admin/courses/new"
+                      element={<AdminCourseForm />}
+                    />
+                    <Route
+                      path="/admin/courses/:id/edit"
+                      element={<AdminCourseForm />}
+                    />
+                    <Route path="/admin/users" element={<AdminUsers />} />
+                    <Route
+                      path="/admin/courses/:id/students"
+                      element={<CourseStudents />}
+                    />
+                    <Route
+                      path="/admin/enrollments"
+                      element={<PendingEnrollments />}
+                    />
+                    <Route path="/admin/tracking" element={<Tracking />} />
+                    <Route
+                      path="/admin/tracking/:courseId"
+                      element={<CourseProgress />}
+                    />
+                    <Route
+                      path="/admin/tracking/:courseId/student/:studentId"
+                      element={<StudentProgress />}
+                    />
+                    <Route
+                      path="/admin/tracking/:courseId/ratings"
+                      element={<VideoRatings />}
+                    />
+                    <Route path="/admin/attendance" element={<AdminAttendance />} />
+                    <Route
+                      path="/admin/attendance/:courseId"
+                      element={<AdminCourseAttendance />}
+                    />
+                    <Route path="/admin/results" element={<AdminResults />} />
+                    <Route
+                      path="/admin/results/:courseId"
+                      element={<AdminCourseResults />}
+                    />
+                    <Route path="/admin/payments" element={<AdminPayments />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </main>
+              <Footer />
+              <Toast />
             </div>
             </ErrorBoundary>
         </Router>
